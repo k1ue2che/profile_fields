@@ -50,7 +50,7 @@ class MemberDirectoryApiController extends OCSController {
 		}
 
 		try {
-			$result = $this->directory->listMembers($department, $search, $limit, $offset);
+			$result = $this->directory->listMembers($department, $search, $limit, $offset, $this->userId);
 			$result['can_write'] = $this->access->canWrite($this->userId);
 			return new DataResponse($result, 200);
 		} catch (InvalidArgumentException $exception) {
@@ -77,7 +77,7 @@ class MemberDirectoryApiController extends OCSController {
 			return new DataResponse(['message' => 'Member not found.'], 404);
 		}
 		$definition = $this->definitions->findById($fieldDefinitionId);
-		if ($definition === null || !$this->access->isAllowedField($definition)) {
+		if ($definition === null || !$this->access->canWriteField($this->userId, $definition)) {
 			return new DataResponse(['message' => 'Field not found.'], 404);
 		}
 		if ($this->userId === null) {
