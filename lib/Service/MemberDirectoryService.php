@@ -40,6 +40,7 @@ class MemberDirectoryService {
 		string $search = '',
 		int $limit = 50,
 		int $offset = 0,
+		?string $actorUid = null,
 	): array {
 		if ($limit < 1 || $limit > self::MAX_PAGE_SIZE || $offset < 0) {
 			throw new InvalidArgumentException('Invalid pagination parameters.');
@@ -58,7 +59,7 @@ class MemberDirectoryService {
 			throw new InvalidArgumentException('Member directory is not configured.');
 		}
 
-		$definitions = $this->allowedDefinitions();
+		$definitions = $this->allowedDefinitions($actorUid);
 		$items = [];
 		$normalizedSearch = mb_strtolower($search);
 		foreach ($group->getUsers() as $user) {
@@ -101,6 +102,7 @@ class MemberDirectoryService {
 				'label' => $definition->getLabel(),
 				'type' => $definition->getType(),
 				'options' => $definition->jsonSerialize()['options'],
+				'can_write' => $this->access->canWriteField($actorUid, $definition),
 			], $definitions)),
 			'departments' => $this->config->departments(),
 			'items' => array_slice($items, $offset, $limit),
@@ -143,10 +145,10 @@ class MemberDirectoryService {
 	}
 
 	/** @return list<FieldDefinition> */
-	public function allowedDefinitions(): array {
+	public function allowedDefinitions(?string $actorUid = null): array {
 		return array_values(array_filter(
 			$this->definitions->findActiveOrdered(),
-			fn (FieldDefinition $definition): bool => $this->access->isAllowedField($definition),
+			fn (FieldDefinition $definition): bool => $this->access->canReadField($actorUid, $definition),
 		));
 	}
 
@@ -166,7 +168,7 @@ class MemberDirectoryService {
 	): array {
 		if (!$this->access->canWrite($actorUid)
 			|| !$this->access->isMember($targetUid)
-			|| !$this->access->isAllowedField($definition)) {
+			|| !$this->access->canWriteField($actorUid, $definition)) {
 			throw new \LogicException('Member directory write is not permitted.');
 		}
 
