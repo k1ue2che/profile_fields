@@ -66,4 +66,47 @@ class MemberDirectoryAccessServiceTest extends TestCase {
 		$service = new MemberDirectoryAccessService($config, $groups, $this->createMock(IUserManager::class));
 		self::assertFalse($service->matchesDepartment('member', 'unsupported'));
 	}
+
+	public function testFieldReadGrantDoesNotImplyWriteGrant(): void {
+		$config = $this->createMock(MemberDirectoryConfig::class);
+		$config->method('enabled')->willReturn(true);
+		$config->method('readGroups')->willReturn(['Kassenpruefer']);
+		$config->method('writeGroups')->willReturn(['Kassenwart']);
+		$config->method('fieldKeys')->willReturn(['anschrift']);
+		$config->method('fieldPermissions')->willReturn([
+			'anschrift' => ['readGroups' => ['Kassenpruefer'], 'writeGroups' => ['Kassenwart']],
+		]);
+		$groups = $this->createMock(IGroupManager::class);
+		$groups->method('isAdmin')->willReturn(false);
+		$groups->method('groupExists')->willReturn(true);
+		$groups->method('isInGroup')->willReturnCallback(
+			static fn (string $uid, string $group): bool => $uid === 'auditor' && $group === 'Kassenpruefer',
+		);
+		$users = $this->createMock(IUserManager::class);
+		$users->method('get')->willReturn($this->createMock(IUser::class));
+		$field = new \OCA\ProfileFields\Db\FieldDefinition();
+		$field->setFieldKey('anschrift');
+		$field->setActive(true);
+
+		$service = new MemberDirectoryAccessService($config, $groups, $users);
+		self::assertTrue($service->canReadField('auditor', $field));
+		self::assertFalse($service->canWriteField('auditor', $field));
+	}
+
+	public function testMissingFieldGrantDeniesValuesEvenToAdmin(): void {
+		$config = $this->createMock(MemberDirectoryConfig::class);
+		$config->method('enabled')->willReturn(true);
+		$config->method('fieldKeys')->willReturn(['anschrift']);
+		$config->method('fieldPermissions')->willReturn([]);
+		$groups = $this->createMock(IGroupManager::class);
+		$groups->method('isAdmin')->willReturn(true);
+		$users = $this->createMock(IUserManager::class);
+		$users->method('get')->willReturn($this->createMock(IUser::class));
+		$field = new \OCA\ProfileFields\Db\FieldDefinition();
+		$field->setFieldKey('anschrift');
+		$field->setActive(true);
+		$service = new MemberDirectoryAccessService($config, $groups, $users);
+		self::assertFalse($service->canReadField('administrator', $field));
+		self::assertFalse($service->canWriteField('administrator', $field));
+	}
 }
