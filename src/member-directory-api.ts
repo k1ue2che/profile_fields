@@ -14,6 +14,7 @@ export type MemberFieldDefinition = {
 	label: string
 	type: 'text' | 'number' | 'boolean' | 'date' | 'url' | 'email' | 'select' | 'multiselect'
 	options: string[] | null
+	can_write: boolean
 }
 
 export type MemberCell = { value: unknown, etag: string, updated_at: string | null }
@@ -37,6 +38,7 @@ export type MemberDirectorySettings = {
 	writeGroups: string[]
 	departments: string[]
 	fieldKeys: string[]
+	fieldPermissions: Record<string, { readGroups: string[], writeGroups: string[] }>
 }
 export type MemberDirectorySettingsPayload = {
 	enabled: boolean
@@ -45,6 +47,7 @@ export type MemberDirectorySettingsPayload = {
 	writeGroups: string[]
 	departments: string[]
 	fieldKeys: string[]
+	fieldPermissions: Record<string, { readGroups: string[], writeGroups: string[] }>
 }
 export type AvailableField = { id: number, field_key: string, label: string, active: boolean }
 
