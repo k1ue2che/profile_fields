@@ -12,6 +12,7 @@ use OCP\Util;
 
 Util::addStyle(Application::APP_ID, 'profile_fields-settings-admin');
 Util::addScript(Application::APP_ID, 'profile_fields-settings-admin');
+Util::addStyle(Application::APP_ID, 'member-directory-settings');
 Util::addScript(Application::APP_ID, 'profile_fields-member-directory-settings');
 ?>
 
