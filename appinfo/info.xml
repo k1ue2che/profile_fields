@@ -59,9 +59,12 @@ Developed with ❤️ by [LibreCode](https://librecode.coop). Ongoing maintenanc
 	</commands>
 	<navigations>
 		<navigation>
+			<id>profile_fields</id>
 			<name>Mitgliederverwaltung</name>
 			<route>profile_fields.member_directory_page.index</route>
 			<order>80</order>
+			<icon>app.svg</icon>
+			<type>link</type>
 		</navigation>
 	</navigations>
 	<settings>
