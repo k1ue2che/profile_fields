@@ -92,7 +92,10 @@ const draftMulti = ref<string[]>([])
 const visibleFields = computed(() => page.value?.fields.filter(f => shownKeys.value.includes(f.field_key)) || [])
 const cellKey = (member: MemberRecord, field: MemberFieldDefinition) => JSON.stringify([member.user_uid, field.field_key])
 const display = (value: unknown): string => value == null || value === '' ? '–' : Array.isArray(value) ? value.join(', ') : typeof value === 'boolean' ? (value ? 'Ja' : 'Nein') : String(value)
-const inputType = (field: MemberFieldDefinition) => ({ number: 'number', date: 'date', email: 'email', url: 'url' }[field.type] || 'text')
+const inputType = (field: MemberFieldDefinition): string => {
+	const inputTypes: Record<string, string> = { number: 'number', date: 'date', email: 'email', url: 'url' }
+	return inputTypes[field.type] || 'text'
+}
 async function load() {
 	loading.value = true
 	error.value = ''
