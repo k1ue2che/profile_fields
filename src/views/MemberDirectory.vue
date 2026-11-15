@@ -53,7 +53,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later -->
 									<button type="button" :disabled="saving" @click="editingKey = null">Abbrechen</button>
 								</div>
 							</div>
-							<button v-else-if="page.can_write" type="button" class="cell-button" :aria-label="`${field.label} von ${member.display_name} bearbeiten`" @click="startEdit(member, field)">
+							<button v-else-if="field.can_write" type="button" class="cell-button" :aria-label="`${field.label} von ${member.display_name} bearbeiten`" @click="startEdit(member, field)">
 								{{ display(member.fields[field.field_key]?.value) }} ✎
 							</button>
 							<span v-else>{{ display(member.fields[field.field_key]?.value) }}</span>
