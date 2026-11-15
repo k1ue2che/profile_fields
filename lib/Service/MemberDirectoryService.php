@@ -13,7 +13,7 @@ use InvalidArgumentException;
 use OCA\ProfileFields\Db\FieldDefinition;
 use OCA\ProfileFields\Db\FieldValue;
 use OCP\IGroupManager;
-use OCP\IUser;
+use OCP\Lock\ILockingProvider;
 
 /**
  * Renders a member directory from Nextcloud groups and existing profile
@@ -28,6 +28,7 @@ class MemberDirectoryService {
 		private IGroupManager $groups,
 		private FieldDefinitionService $definitions,
 		private FieldValueService $values,
+		private ILockingProvider $lockingProvider,
 	) {
 	}
 
@@ -169,27 +170,36 @@ class MemberDirectoryService {
 			throw new \LogicException('Member directory write is not permitted.');
 		}
 
-		$previous = $this->values->findByFieldDefinitionIdAndUserUid($definition->getId(), $targetUid);
-		if (!hash_equals(self::etag($previous), $expectedEtag)) {
-			throw new MemberDirectoryConflictException('Value changed since it was loaded. Reload and try again.');
-		}
+		// Serialize writes from this directory for the same member/field,
+		// including the first insert when no value row exists yet.
+		$lockKey = 'profile_fields:member_directory:' . hash('sha256', $targetUid . "\x00" . $definition->getId());
+		$this->lockingProvider->acquireLock($lockKey, ILockingProvider::LOCK_EXCLUSIVE);
+		try {
+			// Re-read *inside* the exclusive lock: ETag verification and the
+			// subsequent upsert must not overlap another directory write.
+			$previous = $this->values->findByFieldDefinitionIdAndUserUid($definition->getId(), $targetUid);
+			if (!hash_equals(self::etag($previous), $expectedEtag)) {
+				throw new MemberDirectoryConflictException('Value changed since it was loaded. Reload and try again.');
+			}
 
-		// For existing values the visibility must never fall back to the
-		// definition's initial visibility. The directory cannot edit visibility.
-		$visibility = $previous?->getCurrentVisibility();
-		$stored = $this->values->upsert(
-			$definition,
-			$targetUid,
-			$rawValue,
-			$actorUid,
-			$visibility,
-		);
-		$record = $this->values->serializeForResponse($stored);
-		return [
-			'value' => $record['value']['value'] ?? null,
-			'etag' => self::etag($stored),
-			'updated_at' => $record['updated_at'],
-		];
+			// Preserve visibility; the directory must never reset it to defaults.
+			$visibility = $previous?->getCurrentVisibility();
+			$stored = $this->values->upsert(
+				$definition,
+				$targetUid,
+				$rawValue,
+				$actorUid,
+				$visibility,
+			);
+			$record = $this->values->serializeForResponse($stored);
+			return [
+				'value' => $record['value']['value'] ?? null,
+				'etag' => self::etag($stored),
+				'updated_at' => $record['updated_at'],
+			];
+		} finally {
+			$this->lockingProvider->releaseLock($lockKey, ILockingProvider::LOCK_EXCLUSIVE);
+		}
 	}
 
 	public static function etag(?FieldValue $value): string {
