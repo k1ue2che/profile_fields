@@ -11,6 +11,7 @@ namespace OCA\ProfileFields\AppInfo;
 
 use OCA\ProfileFields\Listener\BeforeTemplateRenderedListener;
 use OCA\ProfileFields\Listener\LoadWorkflowSettingsScriptsListener;
+use OCA\ProfileFields\Listener\MemberDirectoryNavigationListener;
 use OCA\ProfileFields\Listener\RegisterWorkflowCheckListener;
 use OCA\ProfileFields\Listener\RegisterWorkflowEntityListener;
 use OCA\ProfileFields\Listener\RegisterWorkflowOperationListener;
@@ -50,6 +51,7 @@ class Application extends App implements IBootstrap {
 		$context->registerEventListener(RegisterOperationsEvent::class, RegisterWorkflowOperationListener::class);
 		$context->registerEventListener(RegisterChecksEvent::class, RegisterWorkflowCheckListener::class);
 		$context->registerEventListener(LoadSettingsScriptsEvent::class, LoadWorkflowSettingsScriptsListener::class);
+		$context->registerEventListener(\OCP\Navigation\Events\LoadAdditionalEntriesEvent::class, MemberDirectoryNavigationListener::class);
 	}
 
 	#[\Override]
