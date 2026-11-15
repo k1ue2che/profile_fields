@@ -48,3 +48,29 @@ Gruppen-IDs werden **nicht fest im Code hinterlegt**, sondern über die Administ
 ## Versionsabgleich vor Deployment
 
 Der Entwicklungsbranch basiert auf dem offiziellen Upstream-Branch **`stable35`** (Stand `df9f85d6b3cc`), dessen `info.xml` Nextcloud 35 unterstützt. Der Fork-Branch `main` ist für Nextcloud 36 vorgesehen. Vor der ersten Testinstallation lokalen Code-/Commitstand mit `stable35` vergleichen und die Erweiterung unter Nextcloud 35 testen. Versionsgrenzen in `info.xml` nicht bloß zur Umgehung einer Kompatibilitätsprüfung ändern.
+
+
+## Implementierungsstand (15.11.2026)
+
+Die Backend-Bausteine liegen im Entwicklungsbranch, sind **noch nicht getestet, deployed oder für Produktivbetrieb freigegeben**:
+
+- `MemberDirectoryConfig`: standardmäßig deaktivierte Konfiguration, Gruppen- und aktive Feldschlüssel-Whitelist
+- `MemberDirectoryAccessService`: Lese- und Schreibgruppen, Mitgliedschaft in der Basisgruppe
+- `MemberDirectorySettingsApiController`: Admin-only GET/PUT der Konfiguration
+- `MemberDirectoryService`: gruppenbasierte Mitgliederliste, Suche und Pagination; bestehende `FieldValueService`-Validierung; Sichtbarkeitserhalt
+- `MemberDirectoryApiController`: lesende und schreibende OCS-Endpunkte mit serverseitigen Prüfungen
+- `MemberDirectoryConflictException`: Meldung veralteter Bearbeitungsstände
+- `MemberDirectoryApiControllerTest`: erste Unit-Tests, Ausführung noch offen
+
+Geplante OCS-Routen:
+
+| Methode | Route (relativ zur OCS-App-API) | Berechtigung |
+|---|---|---|
+| GET | `/api/v1/member-directory/settings` | Nextcloud-Admin |
+| PUT | `/api/v1/member-directory/settings` | Nextcloud-Admin |
+| GET | `/api/v1/member-directory/members` | konfigurierte Lese-/Schreibgruppe oder Admin |
+| PUT | `/api/v1/member-directory/members/{userUid}/fields/{fieldDefinitionId}` | konfigurierte Schreibgruppe oder Admin |
+
+Die Übersicht erlaubt bis 100 Einträge pro Seite. `department`, `search`, `limit` und `offset` sind Suchparameter. Jeder Lesezugriff liefert nur explizit für das Verzeichnis freigegebene Profilfelder.
+
+**Vor Aktivierung noch zu erledigen:** tatsächliche PHPUnit-/PHP-Lint-Ausführung, API-/Berechtigungsintegrationstests, Frontend und Navigation, Admin-Einstellungsoberfläche, Paralleländerungs-Absicherung im Schreibpfad (die vorhandene ETag-Prüfung ist noch nicht atomar), Sicherung und Testdeployment auf Testcamp. Keine Mitgliederverwaltung auf Basis des derzeitigen Branches installieren.
