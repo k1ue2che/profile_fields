@@ -96,7 +96,7 @@ class MemberDirectoryService {
 		]);
 
 		return [
-			'fields' => array_values(array_map(static fn (FieldDefinition $definition): array => [
+			'fields' => array_values(array_map(fn (FieldDefinition $definition): array => [
 				'id' => $definition->getId(),
 				'field_key' => $definition->getFieldKey(),
 				'label' => $definition->getLabel(),
