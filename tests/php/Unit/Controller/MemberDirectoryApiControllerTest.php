@@ -44,7 +44,7 @@ class MemberDirectoryApiControllerTest extends TestCase {
 		$access = $this->createMock(MemberDirectoryAccessService::class);
 		$access->method('canWrite')->willReturn(true);
 		$access->method('isMember')->willReturn(true);
-		$access->method('isAllowedField')->willReturn(false);
+		$access->method('canWriteField')->willReturn(false);
 
 		$definition = new FieldDefinition();
 		$definitions = $this->createMock(FieldDefinitionService::class);
@@ -60,7 +60,7 @@ class MemberDirectoryApiControllerTest extends TestCase {
 		$access = $this->createMock(MemberDirectoryAccessService::class);
 		$access->method('canWrite')->willReturn(true);
 		$access->method('isMember')->willReturn(true);
-		$access->method('isAllowedField')->willReturn(true);
+		$access->method('canWriteField')->willReturn(true);
 
 		$definition = new FieldDefinition();
 		$definitions = $this->createMock(FieldDefinitionService::class);
