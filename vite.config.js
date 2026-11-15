@@ -8,4 +8,6 @@ export default createAppConfig({
 	'settings-personal': 'src/settings-personal.ts',
 	workflow: 'src/workflow.ts',
 	'user-management-action': 'src/user-management-action.ts',
+	'member-directory': 'src/member-directory.ts',
+	'member-directory-settings': 'src/member-directory-settings.ts',
 })
