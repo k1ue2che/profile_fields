@@ -13,6 +13,7 @@ use OCA\ProfileFields\AppInfo\Application;
 use OCA\ProfileFields\Service\MemberDirectoryAccessService;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http\Attribute\FrontpageRoute;
+use OCP\AppFramework\Http\Attribute\NoCSRFRequired;
 use OCP\AppFramework\Http\Attribute\NoAdminRequired;
 use OCP\AppFramework\Http\TemplateResponse;
 use OCP\IRequest;
@@ -26,7 +27,10 @@ class MemberDirectoryPageController extends Controller {
 		parent::__construct(Application::APP_ID, $request);
 	}
 
+	// Read-only HTML entry point, safe to open directly or from bookmarks.
+	// Authentication and the directory read permission remain enforced.
 	#[NoAdminRequired]
+	#[NoCSRFRequired]
 	#[FrontpageRoute(verb: 'GET', url: '/members')]
 	public function index(): TemplateResponse {
 		if (!$this->access->canRead($this->userId)) {
