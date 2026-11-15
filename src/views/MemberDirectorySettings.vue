@@ -33,6 +33,23 @@ SPDX-License-Identifier: AGPL-3.0-or-later -->
 					<input v-model="settings.fieldKeys" type="checkbox" :value="field.field_key"> {{ field.label }}
 				</label>
 			</fieldset>
+			<fieldset v-if="settings.fieldKeys.length">
+				<legend>Feldberechtigungen je Gruppe</legend>
+				<p class="hint">Ohne ausdrückliche Feldfreigabe werden keine Werte angezeigt oder bearbeitet. Schreibrechte erlauben auch das Lesen dieses Felds.</p>
+				<div v-for="key in settings.fieldKeys" :key="key" class="field-grant">
+					<strong>{{ availableFields.find(field => field.field_key === key)?.label || key }}</strong>
+					<label>Lesen
+						<select v-model="grantFor(key).readGroups" multiple size="4">
+							<option v-for="group in readOrWriteGroups" :key="group" :value="group">{{ group }}</option>
+						</select>
+					</label>
+					<label>Bearbeiten
+						<select v-model="grantFor(key).writeGroups" multiple size="4">
+							<option v-for="group in settings.writeGroups" :key="group" :value="group">{{ group }}</option>
+						</select>
+					</label>
+				</div>
+			</fieldset>
 			<datalist id="member-groups"><option v-for="group in availableGroups" :key="group" :value="group" /></datalist>
 			<p class="hint">Alle Änderungen an Gruppenrechten gelten sofort. Personen mit Schreibrechten dürfen ausschließlich die angekreuzten Felder bearbeiten. Die Einstellung ist nur für Nextcloud-Administratoren zugänglich.</p>
 			<button :disabled="saving" type="submit">{{ saving ? 'Speichere …' : 'Einstellungen speichern' }}</button>
@@ -40,7 +57,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later -->
 	</section>
 </template>
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import axios from '@nextcloud/axios'
 import { generateOcsUrl } from '@nextcloud/router'
 import { apiErrorMessage, fetchAvailableFields, fetchMemberSettings, saveMemberSettings, type AvailableField, type MemberDirectorySettingsPayload } from '../member-directory-api'
@@ -52,6 +69,11 @@ const error = ref('')
 const notice = ref('')
 const saving = ref(false)
 const loading = ref(true)
+const readOrWriteGroups = computed(() => [...new Set([...(settings.value?.readGroups || []), ...(settings.value?.writeGroups || [])])])
+function grantFor(key: string) {
+	if (!settings.value) throw new Error('Einstellungen nicht geladen')
+	return settings.value.fieldPermissions[key] ??= { readGroups: [], writeGroups: [] }
+}
 async function load() {
 	try {
 		const [current, fields, groups] = await Promise.all([
@@ -63,6 +85,7 @@ async function load() {
 			enabled: current.enabled, baseGroup: current.baseGroup || '',
 			readGroups: current.readGroups, writeGroups: current.writeGroups,
 			departments: current.departments, fieldKeys: current.fieldKeys,
+			fieldPermissions: current.fieldPermissions || {},
 		}
 		availableFields.value = fields
 		availableGroups.value = groups.data.ocs.data.groups
@@ -74,7 +97,8 @@ async function save() {
 	error.value = ''
 	notice.value = ''
 	try {
-		const current = await saveMemberSettings(settings.value)
+		const permissions = Object.fromEntries(Object.entries(settings.value.fieldPermissions).filter(([key]) => settings.value?.fieldKeys.includes(key)))
+		const current = await saveMemberSettings({ ...settings.value, fieldPermissions: permissions })
 		settings.value.enabled = current.enabled
 		notice.value = 'Einstellungen gespeichert.'
 	} catch (e) { error.value = apiErrorMessage(e) } finally { saving.value = false }
@@ -90,6 +114,8 @@ input:not([type="checkbox"]),select{max-width:540px;padding:8px;border:1px solid
 select{min-height:120px}
 fieldset{display:grid;gap:8px;border:1px solid var(--color-border);padding:14px;max-width:540px}
 fieldset label{display:block}
+.field-grant{display:grid;gap:8px;border-top:1px solid var(--color-border);padding:12px 0}
+.field-grant label{display:grid;gap:4px}
 .hint{font-size:13px;color:var(--color-text-maxcontrast)}
 .error{color:var(--color-error-text)}.success{color:var(--color-success-text)}
 button{justify-self:start;padding:10px 16px}
