@@ -40,7 +40,7 @@ class MemberDirectoryServiceTest extends TestCase {
 		$access = $this->createMock(MemberDirectoryAccessService::class);
 		$access->method('canWrite')->willReturn(true);
 		$access->method('isMember')->willReturn(true);
-		$access->method('isAllowedField')->willReturn(true);
+		$access->method('canWriteField')->willReturn(true);
 
 		$lock = $this->createMock(ILockingProvider::class);
 		$events = [];
@@ -85,7 +85,7 @@ class MemberDirectoryServiceTest extends TestCase {
 		$access = $this->createMock(MemberDirectoryAccessService::class);
 		$access->method('canWrite')->willReturn(true);
 		$access->method('isMember')->willReturn(true);
-		$access->method('isAllowedField')->willReturn(true);
+		$access->method('canWriteField')->willReturn(true);
 
 		$lock = $this->createMock(ILockingProvider::class);
 		$lock->expects(self::once())->method('acquireLock');
