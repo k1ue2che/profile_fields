@@ -64,6 +64,30 @@ class MemberDirectoryAccessService {
 			&& in_array($definition->getFieldKey(), $this->config->fieldKeys(), true);
 	}
 
+	/**
+	 * Return a field only when the actor has an explicit matching grant.
+	 * Nextcloud administrators can configure grants, but do not implicitly
+	 * receive access to private member-directory field values.
+	 */
+	public function canReadField(?string $actorUid, FieldDefinition $definition): bool {
+		if (!$this->canRead($actorUid) || !$this->isAllowedField($definition) || $actorUid === null) {
+			return false;
+		}
+		$permissions = $this->config->fieldPermissions();
+		$rule = $permissions[$definition->getFieldKey()] ?? null;
+		return $rule !== null && ($this->belongsToAny($actorUid, $rule['readGroups'])
+			|| $this->belongsToAny($actorUid, $rule['writeGroups']));
+	}
+
+	public function canWriteField(?string $actorUid, FieldDefinition $definition): bool {
+		if (!$this->canWrite($actorUid) || !$this->isAllowedField($definition) || $actorUid === null) {
+			return false;
+		}
+		$permissions = $this->config->fieldPermissions();
+		$rule = $permissions[$definition->getFieldKey()] ?? null;
+		return $rule !== null && $this->belongsToAny($actorUid, $rule['writeGroups']);
+	}
+
 	/** @param list<string> $groupIds */
 	private function belongsToAny(string $uid, array $groupIds): bool {
 		foreach ($groupIds as $groupId) {
