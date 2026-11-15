@@ -86,9 +86,25 @@ export const fetchAvailableFields = async(): Promise<AvailableField[]> => {
 }
 
 export const apiErrorMessage = (error: unknown): string => {
-	if (axios.isAxiosError(error)) {
-		const data = error.response?.data as { ocs?: { data?: { message?: string } }, message?: string } | undefined
-		return data?.ocs?.data?.message || data?.message || error.message
+	// @nextcloud/axios exports a configured instance, not the Axios namespace.
+	// Inspect the error shape without assuming an isAxiosError() method exists.
+	if (error !== null && typeof error === 'object') {
+		const candidate = error as {
+			message?: unknown
+			response?: { data?: {
+				ocs?: { data?: { message?: unknown } }
+				message?: unknown
+			} }
+		}
+		const messages = [
+			candidate.response?.data?.ocs?.data?.message,
+			candidate.response?.data?.message,
+			candidate.message,
+		]
+		const message = messages.find((value) => typeof value === 'string' && value.length > 0)
+		if (typeof message === 'string') {
+			return message
+		}
 	}
-	return error instanceof Error ? error.message : 'Unbekannter Fehler'
+	return 'Unbekannter Fehler'
 }
