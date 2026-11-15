@@ -27,6 +27,7 @@ class MemberDirectoryConfig {
 	private const WRITE_GROUPS = 'member_directory.write_groups';
 	private const DEPARTMENTS = 'member_directory.departments';
 	private const FIELD_KEYS = 'member_directory.field_keys';
+	private const FIELD_PERMISSIONS = 'member_directory.field_permissions';
 
 	public function __construct(
 		private IConfig $config,
@@ -65,7 +66,47 @@ class MemberDirectoryConfig {
 		return $this->readList(self::FIELD_KEYS);
 	}
 
-	/** @return array{enabled: bool, baseGroup: ?string, readGroups: list<string>, writeGroups: list<string>, departments: list<string>, fieldKeys: list<string>} */
+	/**
+	 * Field-specific grants are explicit; a global read/write group alone does
+	 * not grant access to any field. Invalid stored data fails closed.
+	 *
+	 * @return array<string, array{readGroups: list<string>, writeGroups: list<string>}>
+	 */
+	public function fieldPermissions(): array {
+		try {
+			$raw = json_decode($this->config->getAppValue(Application::APP_ID, self::FIELD_PERMISSIONS, '{}'), true, 512, JSON_THROW_ON_ERROR);
+		} catch (\JsonException) {
+			return [];
+		}
+		if (!is_array($raw) || count($raw) > 100) {
+			return [];
+		}
+		$allowedKeys = $this->fieldKeys();
+		$readGroups = array_unique(array_merge($this->readGroups(), $this->writeGroups()));
+		$writeGroups = $this->writeGroups();
+		$result = [];
+		foreach ($raw as $key => $rule) {
+			if (!is_string($key) || !in_array($key, $allowedKeys, true) || !is_array($rule)) {
+				continue;
+			}
+			$read = $rule['readGroups'] ?? null;
+			$write = $rule['writeGroups'] ?? null;
+			if (!is_array($read) || !array_is_list($read) || !is_array($write) || !array_is_list($write)) {
+				continue;
+			}
+			if (count($read) > 100 || count($write) > 100) {
+				continue;
+			}
+			if (array_filter($read, static fn (mixed $g): bool => !is_string($g) || !in_array($g, $readGroups, true)) !== []
+				|| array_filter($write, static fn (mixed $g): bool => !is_string($g) || !in_array($g, $writeGroups, true)) !== []) {
+				continue;
+			}
+			$result[$key] = ['readGroups' => array_values(array_unique($read)), 'writeGroups' => array_values(array_unique($write))];
+		}
+		return $result;
+	}
+
+	/** @return array{enabled: bool, baseGroup: ?string, readGroups: list<string>, writeGroups: list<string>, departments: list<string>, fieldKeys: list<string>, fieldPermissions: array<string, array{readGroups: list<string>, writeGroups: list<string>}>} */
 	public function getSettings(): array {
 		return [
 			'enabled' => $this->enabled(),
@@ -74,6 +115,7 @@ class MemberDirectoryConfig {
 			'writeGroups' => $this->writeGroups(),
 			'departments' => $this->departments(),
 			'fieldKeys' => $this->fieldKeys(),
+			'fieldPermissions' => $this->fieldPermissions(),
 		];
 	}
 
@@ -82,6 +124,7 @@ class MemberDirectoryConfig {
 	 * @param list<string> $writeGroups
 	 * @param list<string> $departments
 	 * @param list<string> $fieldKeys
+	 * @param array<string, array{readGroups: list<string>, writeGroups: list<string>}> $fieldPermissions
 	 * @return array<string, mixed>
 	 */
 	public function save(
@@ -91,6 +134,7 @@ class MemberDirectoryConfig {
 		array $writeGroups,
 		array $departments,
 		array $fieldKeys,
+		array $fieldPermissions = [],
 	): array {
 		if ($enabled && $baseGroup === '') {
 			throw new InvalidArgumentException('A base group is required to enable the member directory.');
@@ -103,6 +147,7 @@ class MemberDirectoryConfig {
 		$writeGroups = $this->validGroupList($writeGroups);
 		$departments = $this->validGroupList($departments);
 		$fieldKeys = $this->validFieldList($fieldKeys);
+		$fieldPermissions = $this->validateFieldPermissions($fieldPermissions, $fieldKeys, $readGroups, $writeGroups);
 
 		$this->config->setAppValue(Application::APP_ID, self::BASE_GROUP, $baseGroup);
 		foreach ([
@@ -113,9 +158,48 @@ class MemberDirectoryConfig {
 		] as $key => $values) {
 			$this->config->setAppValue(Application::APP_ID, $key, json_encode($values, JSON_THROW_ON_ERROR));
 		}
+		$this->config->setAppValue(Application::APP_ID, self::FIELD_PERMISSIONS, json_encode((object)$fieldPermissions, JSON_THROW_ON_ERROR));
 		$this->config->setAppValue(Application::APP_ID, self::ENABLED, $enabled ? '1' : '0');
 
 		return $this->getSettings();
+	}
+
+	/**
+	 * @param array<string, mixed> $permissions
+	 * @param list<string> $fieldKeys
+	 * @param list<string> $readGroups
+	 * @param list<string> $writeGroups
+	 * @return array<string, array{readGroups: list<string>, writeGroups: list<string>}>
+	 */
+	private function validateFieldPermissions(array $permissions, array $fieldKeys, array $readGroups, array $writeGroups): array {
+		if (count($permissions) > 100) {
+			throw new InvalidArgumentException('Too many field permission entries.');
+		}
+		$readable = array_unique(array_merge($readGroups, $writeGroups));
+		$result = [];
+		foreach ($permissions as $key => $rule) {
+			if (!is_string($key) || !in_array($key, $fieldKeys, true) || !is_array($rule)) {
+				throw new InvalidArgumentException('Field permission references an unauthorized field.');
+			}
+			$read = $rule['readGroups'] ?? null;
+			$write = $rule['writeGroups'] ?? null;
+			if (!is_array($read) || !array_is_list($read) || !is_array($write) || !array_is_list($write)
+				|| count($read) > 100 || count($write) > 100) {
+				throw new InvalidArgumentException('Field permissions require group lists.');
+			}
+			foreach ($read as $group) {
+				if (!is_string($group) || !in_array($group, $readable, true)) {
+					throw new InvalidArgumentException('Field read permission references a group without directory access.');
+				}
+			}
+			foreach ($write as $group) {
+				if (!is_string($group) || !in_array($group, $writeGroups, true)) {
+					throw new InvalidArgumentException('Field write permission references a group without write access.');
+				}
+			}
+			$result[$key] = ['readGroups' => array_values(array_unique($read)), 'writeGroups' => array_values(array_unique($write))];
+		}
+		return $result;
 	}
 
 	/** @return list<string> */
