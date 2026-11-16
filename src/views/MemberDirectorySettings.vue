@@ -14,6 +14,22 @@ SPDX-License-Identifier: AGPL-3.0-or-later -->
 		<div v-if="loading">Einstellungen werden geladen …</div>
 		<form v-else-if="settings" @submit.prevent="save">
 			<section class="member-settings-panel">
+				<h3>0. Standardprofilfelder einrichten</h3>
+				<p class="member-settings-hint">Bei der Aktivierung werden fehlende Standardfelder automatisch angelegt. Vorhandene Felder und ihre Werte werden nicht verändert. Bei Konflikten bleibt die Einrichtung gesperrt.</p>
+				<p v-if="setupLoading" class="member-settings-hint">Felddefinitionen werden geprüft …</p>
+				<template v-else-if="setup">
+					<p class="member-settings-hint">Bereits passend: {{ setup.fields.filter(f => f.status === 'existing').length }} · Fehlend: {{ setup.missing_count }} · Konflikte: {{ setup.conflicts }}</p>
+					<div v-if="setup.conflicts" role="alert" class="member-settings-error">Bitte die Konflikte in der Feldverwaltung auflösen. Es werden keine vorhandenen Felder automatisch umbenannt oder überschrieben.</div>
+					<ul class="member-setup-fields">
+						<li v-for="field in setup.fields" :key="field.field_key">
+							<strong>{{ field.label }}</strong> <code>{{ field.field_key }}</code> — {{ field.status === 'existing' ? 'Vorhanden' : field.status === 'missing' ? 'Wird angelegt' : 'Konflikt' }}
+							<span v-if="field.status === 'conflict'">: {{ field.message }} <span v-if="field.similar_keys.length">({{ field.similar_keys.join(', ') }})</span></span>
+						</li>
+					</ul>
+					<button type="button" :disabled="saving || !setup.can_apply || setup.missing_count === 0" @click="prepareFields">Fehlende Standardfelder jetzt anlegen</button>
+				</template>
+			</section>
+			<section class="member-settings-panel">
 				<h3>1. Allgemeine Einstellungen</h3>
 				<label class="member-toggle"><input v-model="settings.enabled" type="checkbox"> Mitgliederverwaltung aktivieren</label>
 				<p class="member-settings-hint">Bis zur Aktivierung ist die Mitgliederliste für alle Benutzer gesperrt. Änderungen werden erst mit „Einstellungen speichern“ übernommen.</p>
@@ -111,7 +127,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later -->
 import { computed, onMounted, ref } from 'vue'
 import axios from '@nextcloud/axios'
 import { generateOcsUrl, generateUrl } from '@nextcloud/router'
-import { apiErrorMessage, fetchAvailableFields, fetchMemberSettings, saveMemberSettings, type AvailableField, type MemberDirectorySettingsPayload } from '../member-directory-api'
+import { apiErrorMessage, applyMemberSetup, fetchAvailableFields, fetchMemberSettings, fetchMemberSetup, saveMemberSettings, type AvailableField, type MemberDirectorySettingsPayload, type MemberSetupPreview } from '../member-directory-api'
 
 const memberDirectoryUrl = generateUrl('/apps/profile_fields/members')
 const settings = ref<MemberDirectorySettingsPayload | null>(null)
@@ -121,10 +137,33 @@ const error = ref('')
 const notice = ref('')
 const saving = ref(false)
 const loading = ref(true)
+const setup = ref<MemberSetupPreview | null>(null)
+const setupLoading = ref(false)
 const readOrWriteGroups = computed(() => [...new Set([...(settings.value?.readGroups || []), ...(settings.value?.writeGroups || [])])])
 function grantFor(key: string) {
 	if (!settings.value) throw new Error('Einstellungen nicht geladen')
 	return settings.value.fieldPermissions[key] ??= { readGroups: [], writeGroups: [] }
+}
+async function refreshSetup() {
+	setupLoading.value = true
+	try { setup.value = await fetchMemberSetup() }
+	catch (e) { error.value = apiErrorMessage(e) }
+	finally { setupLoading.value = false }
+}
+async function prepareFields() {
+	saving.value = true
+	error.value = ''
+	notice.value = ''
+	try {
+		const result = await applyMemberSetup()
+		setup.value = result
+		availableFields.value = await fetchAvailableFields()
+		if (settings.value) {
+			settings.value.fieldKeys = [...new Set([...settings.value.fieldKeys, ...result.fields.map(f => f.field_key)])]
+		}
+		notice.value = 'Standardfelder vorbereitet. Bitte Feldberechtigungen prüfen und Einstellungen speichern.'
+	} catch (e) { error.value = apiErrorMessage(e) }
+	finally { saving.value = false }
 }
 async function load() {
 	try {
@@ -141,6 +180,7 @@ async function load() {
 			fieldPermissions: current.fieldPermissions || {},
 		}
 		availableFields.value = fields
+		void refreshSetup()
 		availableGroups.value = groups.data.ocs.data.groups
 	} catch (e) { error.value = apiErrorMessage(e) } finally { loading.value = false }
 }
@@ -157,8 +197,17 @@ async function save() {
 			fieldPermissions: permissions,
 		})
 		settings.value.enabled = current.enabled
+		settings.value.fieldKeys = current.fieldKeys
+		availableFields.value = await fetchAvailableFields()
+		await refreshSetup()
 		notice.value = 'Einstellungen gespeichert.'
 	} catch (e) { error.value = apiErrorMessage(e) } finally { saving.value = false }
 }
 onMounted(() => void load())
 </script>
+
+<style scoped>
+.member-setup-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:8px 18px;margin:12px 0 16px;padding:0;list-style:none}
+.member-setup-fields li{padding:9px 12px;border:1px solid var(--color-border);border-radius:8px;line-height:1.5}
+.member-setup-fields code{font-size:12px}
+</style>
