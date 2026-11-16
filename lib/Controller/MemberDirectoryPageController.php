@@ -17,12 +17,14 @@ use OCP\AppFramework\Http\Attribute\NoCSRFRequired;
 use OCP\AppFramework\Http\Attribute\NoAdminRequired;
 use OCP\AppFramework\Http\TemplateResponse;
 use OCP\IRequest;
+use OCP\IURLGenerator;
 
 class MemberDirectoryPageController extends Controller {
 	public function __construct(
 		IRequest $request,
 		private MemberDirectoryAccessService $access,
 		private ?string $userId,
+		private IURLGenerator $urlGenerator,
 	) {
 		parent::__construct(Application::APP_ID, $request);
 	}
@@ -34,7 +36,9 @@ class MemberDirectoryPageController extends Controller {
 	#[FrontpageRoute(verb: 'GET', url: '/members')]
 	public function index(): TemplateResponse {
 		if ($this->access->isAdministrator($this->userId) && !$this->access->canRead($this->userId)) {
-			return new TemplateResponse(Application::APP_ID, 'member-directory-disabled-admin');
+			return new TemplateResponse(Application::APP_ID, 'member-directory-disabled-admin', [
+				'settingsUrl' => $this->urlGenerator->linkToRoute('settings.AdminSettings.index', ['section' => Application::APP_ID]),
+			]);
 		}
 		if (!$this->access->canRead($this->userId)) {
 			return new TemplateResponse(Application::APP_ID, 'member-directory-denied', [], TemplateResponse::RENDER_AS_USER, 403);
