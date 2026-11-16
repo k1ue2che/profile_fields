@@ -11,6 +11,7 @@ namespace OCA\ProfileFields\Service;
 
 use InvalidArgumentException;
 use LogicException;
+use OCP\Group\ISubAdmin;
 use OCP\IGroup;
 use OCP\IGroupManager;
 use OCP\IUser;
@@ -26,6 +27,7 @@ class MemberDirectoryAccountService {
 		private MemberDirectoryConfig $config,
 		private MemberDirectoryAccessService $access,
 		private IGroupManager $groups,
+		private ISubAdmin $subAdmins,
 		private IUserManager $users,
 		private ILockingProvider $locks,
 		private LoggerInterface $logger,
@@ -34,19 +36,52 @@ class MemberDirectoryAccountService {
 
 	/** @return list<string> */
 	public function editableDepartments(?string $actorUid): array {
-		if (!$this->access->canWrite($actorUid) || $actorUid === null
-			|| (!$this->groups->isAdmin($actorUid) && !$this->groups->isDelegatedAdmin($actorUid))) {
+		if (!$this->access->canWrite($actorUid) || $actorUid === null) {
+			return [];
+		}
+
+		$isAdmin = $this->groups->isAdmin($actorUid);
+		$actor = $this->users->get($actorUid);
+		if (!$isAdmin && ($actor === null || !$this->subAdmins->isSubAdmin($actor))) {
 			return [];
 		}
 
 		$protected = array_merge(['admin', $this->config->baseGroup()], $this->config->readGroups(), $this->config->writeGroups());
-		return array_values(array_filter($this->config->departments(), function (string $gid) use ($protected): bool {
+		return array_values(array_filter($this->config->departments(), function (string $gid) use ($protected, $isAdmin, $actor): bool {
 			if (in_array($gid, $protected, true)) {
 				return false;
 			}
 			$group = $this->groups->get($gid);
-			return $group !== null && $group->getGID() === $gid && $group->canAddUser() && $group->canRemoveUser();
+			return $group !== null && $group->getGID() === $gid && $group->canAddUser() && $group->canRemoveUser()
+				&& ($isAdmin || ($actor !== null && $this->subAdmins->isSubAdminOfGroup($actor, $group)));
 		}));
+	}
+
+	/**
+	 * Department edits must respect Nextcloud's group-specific subadmin scope.
+	 *
+	 * @param list<string> $currentDepartments
+	 */
+	public function canChangeDepartment(?string $actorUid, string $targetUid, array $currentDepartments): bool {
+		if (!$this->canEditAccount($actorUid, $targetUid) || $actorUid === null
+			|| $this->editableDepartments($actorUid) === []) {
+			return false;
+		}
+		if ($this->groups->isAdmin($actorUid)) {
+			return true;
+		}
+		$actor = $this->users->get($actorUid);
+		$target = $this->users->get($targetUid);
+		if ($actor === null || $target === null || !$this->subAdmins->isUserAccessible($actor, $target)) {
+			return false;
+		}
+		foreach ($currentDepartments as $gid) {
+			$group = $this->groups->get($gid);
+			if ($group === null || !$this->subAdmins->isSubAdminOfGroup($actor, $group)) {
+				return false;
+			}
+		}
+		return true;
 	}
 
 	public function canEditAccount(?string $actorUid, string $targetUid): bool {
@@ -93,6 +128,9 @@ class MemberDirectoryAccountService {
 			}
 
 			$current = $this->memberDepartments($user);
+			if (!$this->canChangeDepartment($actorUid, $user->getUID(), $current)) {
+				throw new LogicException('Keine Berechtigung zum Verschieben dieses Mitglieds.');
+			}
 			if (!array_is_list($expectedDepartments) || count($expectedDepartments) > 100
 				|| array_filter($expectedDepartments, static fn ($gid): bool => !is_string($gid)) !== []) {
 				throw new InvalidArgumentException('Die bisherige Abteilungszuordnung ist ungültig.');
