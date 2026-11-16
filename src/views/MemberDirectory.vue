@@ -39,7 +39,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later -->
 							</select>
 						</label>
 						<label v-if="memberNumberField">Mitgliedsnummer <small>Vorschlag: {{ page?.next_member_number ?? 'nicht verfügbar' }}. Die Nummer bleibt vor der Anlage korrigierbar.</small>
-							<input v-model.trim="createDraft.fields.mitgliedsnummer" type="text" inputmode="numeric" pattern="[0-9]+" placeholder="Automatisch beim Speichern" autocomplete="off">
+							<input v-model.trim="createDraft.fields.mitgliedsnummer" type="text" inputmode="numeric" pattern="[0-9]+" placeholder="Automatisch beim Speichern" autocomplete="off" @input="memberNumberManuallyEdited = true">
 						</label>
 						<label v-if="createField('eintrittsdatum')">Eintrittsdatum
 							<input v-model="createDraft.fields.eintrittsdatum" type="date">
@@ -199,9 +199,6 @@ const memberNumberField = computed(() => createField('mitgliedsnummer'))
 const addressFields = computed(() => creatableFields.value.filter(f => ['vereins_strasse', 'vereins_hausnummer', 'vereins_plz', 'vereins_ort', 'vereins_land'].includes(f.field_key)))
 const otherCreateFields = computed(() => creatableFields.value.filter(f => !['mitgliedsnummer', 'eintrittsdatum', 'beitragsfrei', 'beitragsart', 'vereins_strasse', 'vereins_hausnummer', 'vereins_plz', 'vereins_ort', 'vereins_land'].includes(f.field_key)))
 const memberNumberManuallyEdited = ref(false)
-watch(() => createDraft.value.fields.mitgliedsnummer, (value, oldValue) => {
-	if (value !== oldValue && value !== page.value?.next_member_number) memberNumberManuallyEdited.value = true
-})
 const suggestedUid = (first: string, last: string): string => {
 	const strip = (text: string) => text.normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/ß/g, 'ss').replace(/[^A-Za-z0-9]/g, '')
 	return (strip(first).slice(0, 3) + strip(last).slice(0, 30)).slice(0, 64)
