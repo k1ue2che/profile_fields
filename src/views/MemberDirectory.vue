@@ -8,6 +8,46 @@ SPDX-License-Identifier: AGPL-3.0-or-later -->
 		</header>
 		<p v-if="error" role="alert" class="error">{{ error }}</p>
 		<p v-if="notice" role="status" class="notice">{{ notice }}</p>
+		<div v-if="page?.can_create && page.creatable_departments.length" class="member-actions">
+			<button type="button" class="create-button" :disabled="loading || saving" @click="openCreateForm">+ Neues Mitglied</button>
+		</div>
+		<section v-if="createOpen" class="member-create" aria-label="Neues Mitglied anlegen">
+			<div class="create-heading"><h3>Neues Mitglied</h3><button type="button" :disabled="saving" @click="createOpen = false">Schließen</button></div>
+			<p>Das Konto erhält die Basisgruppe und genau eine Abteilung. Eine Einladung zur Passworteinrichtung wird per E-Mail versendet.</p>
+			<form @submit.prevent="submitCreate">
+				<div class="create-grid">
+					<label>Vorname <input v-model.trim="createDraft.firstName" required maxlength="255" autocomplete="off"></label>
+					<label>Nachname <input v-model.trim="createDraft.lastName" required maxlength="255" autocomplete="off"></label>
+					<label>Kontoname (vor Anlage korrigierbar)
+						<input v-model.trim="createDraft.userUid" required minlength="3" maxlength="64" pattern="[A-Za-z0-9][A-Za-z0-9._-]{2,63}" autocomplete="off">
+					</label>
+					<label>Anzeigename <input v-model.trim="createDraft.displayName" required maxlength="255" autocomplete="off"></label>
+					<label>E-Mail für Einladung <input v-model.trim="createDraft.email" type="email" required maxlength="254" autocomplete="off"></label>
+					<label>Abteilung
+						<select v-model="createDraft.department" required>
+							<option value="" disabled>Abteilung auswählen</option>
+							<option v-for="group in page?.creatable_departments || []" :key="group" :value="group">{{ group }}</option>
+						</select>
+					</label>
+					<label v-for="field in creatableFields" :key="field.id">{{ field.label }}
+						<select v-if="field.type === 'select'" v-model="createDraft.fields[field.field_key]">
+							<option value="">–</option><option v-for="option in field.options || []" :key="option" :value="option">{{ option }}</option>
+						</select>
+						<select v-else-if="field.type === 'boolean'" v-model="createDraft.fields[field.field_key]">
+							<option value="">–</option><option value="true">Ja</option><option value="false">Nein</option>
+						</select>
+						<select v-else-if="field.type === 'multiselect'" v-model="createDraft.fields[field.field_key]" multiple>
+							<option v-for="option in field.options || []" :key="option" :value="option">{{ option }}</option>
+						</select>
+						<input v-else v-model="createDraft.fields[field.field_key]" :type="inputType(field)">
+					</label>
+				</div>
+				<div class="create-submit">
+					<button type="submit" :disabled="saving || loading || !page?.can_create">{{ saving ? 'Lege an …' : 'Mitglied anlegen und einladen' }}</button>
+					<button type="button" :disabled="saving" @click="createOpen = false">Abbrechen</button>
+				</div>
+			</form>
+		</section>
 		<div class="toolbar">
 			<label>Suche <input v-model="search" type="search" placeholder="Name, Benutzername oder Profilfeld" @keydown.enter="reload"></label>
 			<label>Abteilung
@@ -104,8 +144,8 @@ SPDX-License-Identifier: AGPL-3.0-or-later -->
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
-import { apiErrorMessage, changeMemberDepartment, fetchMembers, saveDisplayName, saveMemberField, type MemberCell, type MemberFieldDefinition, type MemberPage, type MemberRecord } from '../member-directory-api'
+import { computed, onMounted, ref, watch } from 'vue'
+import { apiErrorMessage, changeMemberDepartment, createMember, fetchMembers, saveDisplayName, saveMemberField, type MemberCell, type MemberFieldDefinition, type MemberPage, type MemberRecord, type NewMemberPayload } from '../member-directory-api'
 
 const page = ref<MemberPage | null>(null)
 const department = ref('')
@@ -114,6 +154,52 @@ const offset = ref(0)
 const limit = 50
 const shownKeys = ref<string[]>([])
 const loading = ref(false)
+const createOpen = ref(false)
+const createDraft = ref<NewMemberPayload>({ userUid: '', firstName: '', lastName: '', displayName: '', email: '', department: '', fields: {} })
+const createUidManuallyEdited = ref(false)
+const createDisplayNameManuallyEdited = ref(false)
+const creatableFields = computed(() => page.value?.fields.filter(f => f.can_write && !['vereins_vorname', 'vereins_nachname'].includes(f.field_key)) || [])
+const suggestedUid = (first: string, last: string): string => {
+	const strip = (text: string) => text.normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/ß/g, 'ss').replace(/[^A-Za-z0-9]/g, '')
+	return (strip(first).slice(0, 3) + strip(last).slice(0, 30)).slice(0, 64)
+}
+watch(() => [createDraft.value.firstName, createDraft.value.lastName], ([first, last]) => {
+	if (!createUidManuallyEdited.value) createDraft.value.userUid = suggestedUid(first, last)
+	if (!createDisplayNameManuallyEdited.value) createDraft.value.displayName = [first, last].filter(Boolean).join(' ')
+})
+watch(() => createDraft.value.userUid, value => {
+	if (value !== suggestedUid(createDraft.value.firstName, createDraft.value.lastName)) createUidManuallyEdited.value = true
+})
+watch(() => createDraft.value.displayName, value => {
+	if (value !== [createDraft.value.firstName, createDraft.value.lastName].filter(Boolean).join(' ')) createDisplayNameManuallyEdited.value = true
+})
+function openCreateForm() {
+	createOpen.value = true
+	error.value = ''
+	notice.value = ''
+}
+async function submitCreate() {
+	if (!page.value?.can_create || saving.value || loading.value) return
+	saving.value = true
+	error.value = ''
+	notice.value = ''
+	try {
+		const result = await createMember(createDraft.value)
+		createOpen.value = false
+		createDraft.value = { userUid: '', firstName: '', lastName: '', displayName: '', email: '', department: '', fields: {} }
+		createUidManuallyEdited.value = false
+		createDisplayNameManuallyEdited.value = false
+		offset.value = 0
+		await load()
+		notice.value = result.invitation_sent
+			? 'Mitglied angelegt. Einladung zur Passworteinrichtung versendet.'
+			: 'Mitglied angelegt, aber die Einladung konnte nicht versendet werden.'
+	} catch (e) {
+		error.value = apiErrorMessage(e)
+	} finally {
+		saving.value = false
+	}
+}
 const saving = ref(false)
 const error = ref('')
 const notice = ref('')
@@ -137,6 +223,7 @@ async function load() {
 		const previousKeys = shownKeys.value
 		const hadPage = page.value !== null
 		page.value = await fetchMembers({ department: department.value, search: search.value, offset: offset.value, limit })
+		if (!page.value.can_create) createOpen.value = false
 		if (offset.value > 0 && offset.value >= page.value.pagination.total) {
 			offset.value = Math.max(0, Math.ceil(page.value.pagination.total / limit) - 1) * limit
 			page.value = await fetchMembers({ department: department.value, search: search.value, offset: offset.value, limit })
@@ -230,5 +317,14 @@ small{display:block;font-weight:400;color:var(--color-text-maxcontrast)}
 .cell-button:hover{text-decoration:underline}
 .actions{display:flex;gap:5px;margin-top:5px}
 .error{color:var(--color-error-text)} .notice{color:var(--color-success-text)}
+.member-actions{display:flex;justify-content:flex-end}
+.create-button,.create-submit button[type=submit]{background:var(--color-primary-element);color:var(--color-primary-element-text);border-radius:8px}
+.member-create{padding:16px;border:1px solid var(--color-border);border-radius:12px;background:var(--color-main-background)}
+.create-heading{display:flex;justify-content:space-between;align-items:center}
+.create-heading h3{margin:0}
+.create-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}
+.create-grid label{display:flex;flex-direction:column;gap:6px}
+.create-grid input,.create-grid select{width:100%;max-width:100%;box-sizing:border-box}
+.create-submit{display:flex;gap:12px;margin-top:20px}
 footer{display:flex;align-items:center;gap:16px}
 </style>
