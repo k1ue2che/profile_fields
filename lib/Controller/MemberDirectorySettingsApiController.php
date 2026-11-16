@@ -12,6 +12,7 @@ namespace OCA\ProfileFields\Controller;
 use InvalidArgumentException;
 use OCA\ProfileFields\AppInfo\Application;
 use OCA\ProfileFields\Service\MemberDirectoryConfig;
+use OCA\ProfileFields\Service\MemberDirectorySetupService;
 use OCP\AppFramework\Http\Attribute\ApiRoute;
 use OCP\AppFramework\Http\DataResponse;
 use OCP\AppFramework\OCSController;
@@ -26,6 +27,7 @@ class MemberDirectorySettingsApiController extends OCSController {
 	public function __construct(
 		IRequest $request,
 		private MemberDirectoryConfig $config,
+		private MemberDirectorySetupService $setup,
 		private IGroupManager $groups,
 		private ?string $userId,
 	) {
@@ -38,6 +40,26 @@ class MemberDirectorySettingsApiController extends OCSController {
 			return new DataResponse(['message' => 'Administrator permission required.'], 403);
 		}
 		return new DataResponse($this->config->getSettings());
+	}
+
+	#[ApiRoute(verb: 'GET', url: '/api/v1/member-directory/setup')]
+	public function setupPreview(): DataResponse {
+		if (!$this->isAdmin()) {
+			return new DataResponse(['message' => 'Administrator permission required.'], 403);
+		}
+		return new DataResponse($this->setup->preview());
+	}
+
+	#[ApiRoute(verb: 'POST', url: '/api/v1/member-directory/setup')]
+	public function setupApply(): DataResponse {
+		if (!$this->isAdmin()) {
+			return new DataResponse(['message' => 'Administrator permission required.'], 403);
+		}
+		try {
+			return new DataResponse($this->setup->apply());
+		} catch (InvalidArgumentException $e) {
+			return new DataResponse(['message' => $e->getMessage()], 409);
+		}
 	}
 
 	/** @param list<string> $readGroups
@@ -60,6 +82,10 @@ class MemberDirectorySettingsApiController extends OCSController {
 			return new DataResponse(['message' => 'Administrator permission required.'], 403);
 		}
 		try {
+			if ($enabled) {
+				$this->setup->apply();
+				$fieldKeys = array_values(array_unique(array_merge($fieldKeys, MemberDirectorySetupService::requiredKeys())));
+			}
 			return new DataResponse($this->config->save(
 				$enabled,
 				$baseGroup,
