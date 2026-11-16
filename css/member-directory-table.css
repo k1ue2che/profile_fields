@@ -397,3 +397,39 @@
   color: var(--color-primary-element-text);
   font-weight: 700;
 }
+
+/* At 100% zoom, Nextcloud may keep the app pane at viewport height instead
+ * of making the whole document scroll. Constrain the creation card and give
+ * its form its own vertical scrolling area, including keyboard scrolling. */
+#profile-fields-member-directory .member-create {
+  display: flex;
+  flex-direction: column;
+  max-height: min(80dvh, 900px);
+  overflow: hidden;
+}
+#profile-fields-member-directory .member-create .create-heading {
+  flex: 0 0 auto;
+}
+#profile-fields-member-directory .member-create .create-form {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  grid-auto-rows: max-content;
+  padding: 0 8px 6px 0;
+}
+#profile-fields-member-directory .member-create .create-submit {
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  padding: 13px 0 5px;
+  border-top: 1px solid var(--color-border);
+  background: var(--color-main-background);
+}
+@media (max-width: 620px) {
+  #profile-fields-member-directory .member-create {
+    max-height: 68dvh;
+  }
+}
