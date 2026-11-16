@@ -49,8 +49,16 @@ class MemberDirectoryAccountServiceTest extends TestCase {
 		$this->member->method('getUID')->willReturn('member');
 		$this->member->method('getDisplayName')->willReturn('Old name');
 		$this->member->method('canChangeDisplayName')->willReturn(true);
+		$actor = $this->createMock(IUser::class);
+		$actor->method('getUID')->willReturn('actor');
 		$users = $this->createMock(IUserManager::class);
-		$users->method('get')->with('member')->willReturn($this->member);
+		$users->method('get')->willReturnCallback(
+			fn (string $uid): ?IUser => match ($uid) {
+				'member' => $this->member,
+				'actor' => $actor,
+				default => null,
+			},
+		);
 
 		$groups = $this->createMock(IGroupManager::class);
 		$groups->method('isAdmin')->willReturnCallback(fn (string $uid): bool => $uid === 'actor' && $this->groupAdmin);
