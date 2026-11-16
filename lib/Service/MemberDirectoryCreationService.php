@@ -254,7 +254,7 @@ class MemberDirectoryCreationService {
 		return $uid !== ''
 			&& mb_strlen($uid) <= 64
 			&& strlen($uid) <= IUser::MAX_USERID_LENGTH
-			&& preg_match('/^[\\p{L}\\p{N} _.@\\\'-]+$/uD', $uid) === 1;
+			&& preg_match('/^[\\p{L}\\p{N} _.@\\x{27}-]+$/uD', $uid) === 1;
 	}
 
 	private function checkedGroup(string $gid): IGroup {
