@@ -92,9 +92,9 @@ class MemberDirectorySetupServiceTest extends TestCase {
 	public function testMissingFieldsAreCreatedOnceAndSecondRunIsNoOp(): void {
 		$stored = [];
 		$definitions = $this->createMock(FieldDefinitionService::class);
-		$definitions->method('findAllOrdered')->willReturnCallback(static fn (): array => array_values($stored));
+		$definitions->method('findAllOrdered')->willReturnCallback(static function () use (&$stored): array { return array_values($stored); });
 		$definitions->method('findByFieldKey')->willReturnCallback(
-			static fn (string $key): ?FieldDefinition => $stored[$key] ?? null,
+			static function (string $key) use (&$stored): ?FieldDefinition { return $stored[$key] ?? null; },
 		);
 		$definitions->expects(self::exactly(11))->method('create')->willReturnCallback(
 			function (array $spec) use (&$stored): FieldDefinition {
