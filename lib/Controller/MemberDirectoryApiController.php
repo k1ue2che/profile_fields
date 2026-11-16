@@ -17,6 +17,7 @@ use OCA\ProfileFields\Service\MemberDirectoryAccessService;
 use OCA\ProfileFields\Service\MemberDirectoryAccountService;
 use OCA\ProfileFields\Service\MemberDirectoryConflictException;
 use OCA\ProfileFields\Service\MemberDirectoryCreationService;
+use OCA\ProfileFields\Service\MemberNumberService;
 use OCA\ProfileFields\Service\MemberDirectoryService;
 use OCP\AppFramework\Http\Attribute\ApiRoute;
 use OCP\AppFramework\Http\Attribute\NoAdminRequired;
@@ -43,6 +44,7 @@ class MemberDirectoryApiController extends OCSController {
 		private ?string $userId,
 		private MemberDirectoryAccountService $accounts,
 		private MemberDirectoryCreationService $creator,
+		private MemberNumberService $memberNumbers,
 		private LoggerInterface $logger,
 	) {
 		parent::__construct(Application::APP_ID, $request);
@@ -65,6 +67,7 @@ class MemberDirectoryApiController extends OCSController {
 			$result['can_write'] = $this->access->canWrite($this->userId);
 			$result['can_create'] = $this->access->canCreate($this->userId);
 			$result['creatable_departments'] = $this->creator->availableDepartments($this->userId);
+			$result['next_member_number'] = $result['can_create'] ? $this->memberNumbers->suggest($this->userId) : null;
 			$result['editable_departments'] = $this->accounts->editableDepartments($this->userId);
 			foreach ($result['items'] as &$member) {
 				$member['can_edit_display_name'] = $this->accounts->canEditDisplayName($this->userId, $member['user_uid']);
