@@ -28,6 +28,7 @@ export type MemberRecord = {
 }
 export type MemberPage = {
 	can_create: boolean
+	next_member_number: string | null
 	creatable_departments: string[]
 	fields: MemberFieldDefinition[]
 	departments: string[]
