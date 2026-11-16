@@ -22,8 +22,8 @@ SPDX-License-Identifier: AGPL-3.0-or-later -->
 					<div class="create-grid">
 						<label>Vorname *<input v-model.trim="createDraft.firstName" required maxlength="255" autocomplete="off"></label>
 						<label>Nachname *<input v-model.trim="createDraft.lastName" required maxlength="255" autocomplete="off"></label>
-						<label>Kontoname * <small>Wird automatisch vorgeschlagen und kann vor der Anlage geändert werden.</small>
-							<input v-model.trim="createDraft.userUid" required minlength="3" maxlength="64" pattern="[A-Za-z0-9][A-Za-z0-9._-]{2,63}" title="3–64 Zeichen, ohne Leerzeichen: Buchstaben, Zahlen, Punkt, Unterstrich oder Bindestrich." autocomplete="off">
+						<label>Kontoname * <small>Wird automatisch vorgeschlagen. Leerzeichen sind erlaubt; vor der Anlage änderbar.</small>
+							<input v-model.trim="createDraft.userUid" required minlength="1" maxlength="64" title="1–64 Zeichen. Leerzeichen, Buchstaben, Zahlen, Umlaute sowie . _ @ - und Apostroph sind erlaubt." autocomplete="off">
 						</label>
 						<label>Anzeigename *<input v-model.trim="createDraft.displayName" required maxlength="255" autocomplete="off"></label>
 						<label class="span-full">E-Mail-Adresse für Einladung *<input v-model.trim="createDraft.email" type="email" required maxlength="254" autocomplete="off"></label>
