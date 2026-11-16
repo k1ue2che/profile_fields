@@ -15,6 +15,7 @@ use OCA\ProfileFields\Service\FieldDefinitionService;
 use OCA\ProfileFields\Service\MemberDirectoryAccessService;
 use OCA\ProfileFields\Service\MemberDirectoryAccountService;
 use OCA\ProfileFields\Service\MemberDirectoryConflictException;
+use OCA\ProfileFields\Service\MemberDirectoryCreationService;
 use OCA\ProfileFields\Service\MemberDirectoryService;
 use OCP\IRequest;
 use PHPUnit\Framework\TestCase;
@@ -88,11 +89,67 @@ class MemberDirectoryApiControllerTest extends TestCase {
 		self::assertSame(409, $controller->changeDepartment('member', '50nY', ['20NY'])->getStatus());
 	}
 
+	public function testCreationIsDeniedWithoutSeparatePermission(): void {
+		$access = $this->createMock(MemberDirectoryAccessService::class);
+		$access->method('canCreate')->with('admin')->willReturn(false);
+		$creator = $this->createMock(MemberDirectoryCreationService::class);
+		$creator->expects(self::never())->method('create');
+
+		$controller = $this->controller(
+			$this->createMock(MemberDirectoryService::class),
+			$access,
+			creator: $creator,
+		);
+		self::assertSame(403, $controller->create(
+			'NewMember', 'New', 'Member', 'New Member', 'test@example.org', '20NY',
+		)->getStatus());
+	}
+
+	public function testCreatedMemberReturns201(): void {
+		$access = $this->createMock(MemberDirectoryAccessService::class);
+		$access->method('canCreate')->with('admin')->willReturn(true);
+		$creator = $this->createMock(MemberDirectoryCreationService::class);
+		$creator->expects(self::once())->method('create')->with(
+			'admin', 'NewMember', 'New', 'Member', 'New Member', 'test@example.org', '20NY',
+			['member_number' => '782'],
+		)->willReturn(['user_uid' => 'NewMember', 'invitation_sent' => true]);
+
+		$controller = $this->controller(
+			$this->createMock(MemberDirectoryService::class),
+			$access,
+			creator: $creator,
+		);
+		$response = $controller->create(
+			'NewMember', 'New', 'Member', 'New Member', 'test@example.org', '20NY',
+			['member_number' => '782'],
+		);
+		self::assertSame(201, $response->getStatus());
+		self::assertSame(['user_uid' => 'NewMember', 'invitation_sent' => true], $response->getData());
+	}
+
+	public function testCreatingDuplicateMemberReturnsConflict(): void {
+		$access = $this->createMock(MemberDirectoryAccessService::class);
+		$access->method('canCreate')->with('admin')->willReturn(true);
+		$creator = $this->createMock(MemberDirectoryCreationService::class);
+		$creator->method('create')->willThrowException(
+			new MemberDirectoryConflictException('Der Kontoname ist bereits vergeben.'),
+		);
+		$controller = $this->controller(
+			$this->createMock(MemberDirectoryService::class),
+			$access,
+			creator: $creator,
+		);
+		self::assertSame(409, $controller->create(
+			'NewMember', 'New', 'Member', 'New Member', 'test@example.org', '20NY',
+		)->getStatus());
+	}
+
 	private function controller(
 		MemberDirectoryService $directory,
 		MemberDirectoryAccessService $access,
 		?FieldDefinitionService $definitions = null,
 		?MemberDirectoryAccountService $accounts = null,
+		?MemberDirectoryCreationService $creator = null,
 	): MemberDirectoryApiController {
 		return new MemberDirectoryApiController(
 			$this->createMock(IRequest::class),
@@ -101,6 +158,7 @@ class MemberDirectoryApiControllerTest extends TestCase {
 			$definitions ?? $this->createMock(FieldDefinitionService::class),
 			'admin',
 			$accounts ?? $this->createMock(MemberDirectoryAccountService::class),
+			$creator ?? $this->createMock(MemberDirectoryCreationService::class),
 			new NullLogger(),
 		);
 	}
