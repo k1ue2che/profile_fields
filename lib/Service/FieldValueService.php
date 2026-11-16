@@ -118,6 +118,11 @@ class FieldValueService {
 	/**
 	 * @return list<FieldValue>
 	 */
+	/** @return list<FieldValue> */
+	public function findByDefinition(FieldDefinition $definition): array {
+		return $this->fieldValueMapper->findByFieldDefinitionId($definition->getId());
+	}
+
 	public function findByUserUid(string $userUid): array {
 		return $this->fieldValueMapper->findByUserUid($userUid);
 	}
