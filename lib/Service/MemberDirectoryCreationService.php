@@ -103,9 +103,8 @@ class MemberDirectoryCreationService {
 		if ($email === '' || strlen($email) > 254 || filter_var($email, FILTER_VALIDATE_EMAIL) === false) {
 			throw new InvalidArgumentException('Bitte eine gültige E-Mail-Adresse für die Einladung angeben.');
 		}
-		if (strlen($userUid) > IUser::MAX_USERID_LENGTH
-			|| preg_match('/^[A-Za-z0-9][A-Za-z0-9._-]{2,63}$/D', $userUid) !== 1) {
-			throw new InvalidArgumentException('Kontoname: 3 bis 64 Zeichen, nur Buchstaben, Ziffern, Punkt, Unterstrich oder Bindestrich.');
+		if (!self::isSupportedUserId($userUid)) {
+			throw new InvalidArgumentException('Kontoname: 1 bis 64 Zeichen. Buchstaben, Ziffern, Leerzeichen und _.@\'- sind erlaubt.');
 		}
 		$this->users->validateUserId($userUid, true);
 		$baseId = $this->config->baseGroup();
@@ -244,6 +243,18 @@ class MemberDirectoryCreationService {
 		} finally {
 			$this->locks->releaseLock($lockKey, ILockingProvider::LOCK_EXCLUSIVE);
 		}
+	}
+
+	/**
+	 * Nextcloud supports spaces and @ in account IDs. Keep a conservative
+	 * public-facing allow-list, then delegate the definitive validation to
+	 * IUserManager::validateUserId() before creating the account.
+	 */
+	public static function isSupportedUserId(string $uid): bool {
+		return $uid !== ''
+			&& mb_strlen($uid) <= 64
+			&& strlen($uid) <= IUser::MAX_USERID_LENGTH
+			&& preg_match('/^[\\p{L}\\p{N} _.@\\\'-]+$/uD', $uid) === 1;
 	}
 
 	private function checkedGroup(string $gid): IGroup {
