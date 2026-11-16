@@ -144,3 +144,16 @@ export const apiErrorMessage = (error: unknown): string => {
 	}
 	return 'Unbekannter Fehler'
 }
+
+export type MemberSetupField = { field_key: string, label: string, status: 'existing' | 'missing' | 'conflict', message: string, similar_keys: string[] }
+export type MemberSetupPreview = { ready: boolean, can_apply: boolean, missing_count: number, conflicts: number, fields: MemberSetupField[] }
+
+export const fetchMemberSetup = async(): Promise<MemberSetupPreview> => {
+	const response = await axios.get<{ ocs: { data: MemberSetupPreview } }>(apiUrl('/setup'), { headers })
+	return response.data.ocs.data
+}
+
+export const applyMemberSetup = async(): Promise<MemberSetupPreview> => {
+	const response = await axios.post<{ ocs: { data: MemberSetupPreview } }>(apiUrl('/setup'), {}, { headers: jsonHeaders })
+	return response.data.ocs.data
+}
