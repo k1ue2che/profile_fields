@@ -7,7 +7,6 @@
 
 declare(strict_types=1);
 
-use OCA\ProfileFields\AppInfo\Application;
 use OCP\Util;
 
 Util::addStyle(Application::APP_ID, 'member-directory-table');
@@ -16,5 +15,5 @@ Util::addStyle(Application::APP_ID, 'member-directory-table');
   <h2>Mitgliederverwaltung</h2>
   <p>Die Mitgliederverwaltung ist derzeit deaktiviert oder nicht für dein Administratorkonto freigegeben.</p>
   <p>Als Nextcloud-Administrator kannst du die Konfiguration verwalten. Solange die Mitgliederverwaltung deaktiviert ist, werden keine Mitgliederdaten angezeigt.</p>
-  <p><a class="button primary" href="<?php p(\OC::$server->getURLGenerator()->linkToRoute('settings.AdminSettings.index', ['section' => Application::APP_ID])); ?>">Einstellungen öffnen</a></p>
+  <p><a class="button primary" href="<?php p($_['settingsUrl']); ?>">Einstellungen öffnen</a></p>
 </main>
