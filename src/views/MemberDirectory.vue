@@ -4,19 +4,19 @@ SPDX-License-Identifier: AGPL-3.0-or-later -->
 	<main class="member-directory">
 		<header>
 			<h2>Mitgliederverwaltung</h2>
-			<p>Mitglieder der konfigurierten Vereinsgruppe verwalten</p>
+			<p>Die Benutzer-ID ist fest mit dem Nextcloud-Konto verknüpft und kann hier nicht geändert werden.</p>
 		</header>
 		<p v-if="error" role="alert" class="error">{{ error }}</p>
 		<p v-if="notice" role="status" class="notice">{{ notice }}</p>
 		<div class="toolbar">
 			<label>Suche <input v-model="search" type="search" placeholder="Name, Benutzername oder Profilfeld" @keydown.enter="reload"></label>
 			<label>Abteilung
-				<select v-model="department" @change="reload">
+				<select v-model="department" :disabled="loading || saving" @change="reload">
 					<option value="">Alle Abteilungen</option>
 					<option v-for="group in page?.departments || []" :key="group" :value="group">{{ group }}</option>
 				</select>
 			</label>
-			<button type="button" :disabled="loading" @click="reload">Suchen / Aktualisieren</button>
+			<button type="button" :disabled="loading || saving" @click="reload">Suchen / Aktualisieren</button>
 			<details v-if="page?.fields.length" class="columns">
 				<summary>Spalten auswählen</summary>
 				<label v-for="field in page.fields" :key="field.id" class="column-choice">
@@ -33,8 +33,39 @@ SPDX-License-Identifier: AGPL-3.0-or-later -->
 				</tr></thead>
 				<tbody>
 					<tr v-for="member in page.items" :key="member.user_uid">
-						<th scope="row">{{ member.display_name }}<small>{{ member.user_uid }}</small></th>
-						<td>{{ member.departments.join(', ') || '–' }}</td>
+						<th scope="row">
+							<form v-if="accountEdit?.uid === member.user_uid && accountEdit.kind === 'name'" @submit.prevent="saveAccount(member)">
+								<label>Nextcloud-Anzeigename <input v-model="accountDraft" type="text" required :disabled="saving"></label>
+								<div class="actions">
+									<button type="submit" :disabled="saving">Speichern</button>
+									<button type="button" :disabled="saving" @click="accountEdit = null">Abbrechen</button>
+								</div>
+							</form>
+							<button v-else-if="member.can_edit_display_name" type="button" class="cell-button" :disabled="loading || saving" :aria-label="`Anzeigename von ${member.user_uid} bearbeiten`" @click="startAccountEdit(member, 'name')">
+								{{ member.display_name }} ✎
+							</button>
+							<span v-else>{{ member.display_name }}</span>
+							<small>{{ member.user_uid }}</small>
+						</th>
+						<td>
+							<form v-if="accountEdit?.uid === member.user_uid && accountEdit.kind === 'department'" @submit.prevent="saveAccount(member)">
+								<label>Zielabteilung
+									<select v-model="accountDraft" required :disabled="saving">
+										<option value="" disabled>Abteilung auswählen</option>
+										<option v-for="group in page.editable_departments" :key="group" :value="group">{{ group }}</option>
+									</select>
+								</label>
+								<small>Bisherige Abteilungen: {{ member.departments.join(', ') || 'keine' }}. Es bleibt nur die Zielabteilung.</small>
+								<div class="actions">
+									<button type="submit" :disabled="saving">Speichern</button>
+									<button type="button" :disabled="saving" @click="accountEdit = null">Abbrechen</button>
+								</div>
+							</form>
+							<button v-else-if="member.can_change_department" type="button" class="cell-button" :disabled="loading || saving" :aria-label="`Abteilung von ${member.user_uid} ändern`" @click="startAccountEdit(member, 'department')">
+								{{ member.departments.join(', ') || '–' }} ✎
+							</button>
+							<span v-else>{{ member.departments.join(', ') || '–' }}</span>
+						</td>
 						<td v-for="field in visibleFields" :key="field.id">
 							<div v-if="editingKey === cellKey(member, field)">
 								<select v-if="field.type === 'select'" v-model="draft">
@@ -53,7 +84,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later -->
 									<button type="button" :disabled="saving" @click="editingKey = null">Abbrechen</button>
 								</div>
 							</div>
-							<button v-else-if="field.can_write" type="button" class="cell-button" :aria-label="`${field.label} von ${member.display_name} bearbeiten`" @click="startEdit(member, field)">
+							<button v-else-if="field.can_write" type="button" class="cell-button" :disabled="loading || saving" :aria-label="`${field.label} von ${member.display_name} bearbeiten`" @click="startEdit(member, field)">
 								{{ display(member.fields[field.field_key]?.value) }} ✎
 							</button>
 							<span v-else>{{ display(member.fields[field.field_key]?.value) }}</span>
@@ -65,16 +96,16 @@ SPDX-License-Identifier: AGPL-3.0-or-later -->
 		</div>
 		<footer v-if="page">
 			<span>{{ page.pagination.total }} Mitglieder</span>
-			<button type="button" :disabled="loading || offset === 0" @click="changePage(-1)">Zurück</button>
+			<button type="button" :disabled="loading || saving || offset === 0" @click="changePage(-1)">Zurück</button>
 			<span>Seite {{ Math.floor(offset / limit) + 1 }}</span>
-			<button type="button" :disabled="loading || offset + limit >= page.pagination.total" @click="changePage(1)">Weiter</button>
+			<button type="button" :disabled="loading || saving || offset + limit >= page.pagination.total" @click="changePage(1)">Weiter</button>
 		</footer>
 	</main>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { apiErrorMessage, fetchMembers, saveMemberField, type MemberCell, type MemberFieldDefinition, type MemberPage, type MemberRecord } from '../member-directory-api'
+import { apiErrorMessage, changeMemberDepartment, fetchMembers, saveDisplayName, saveMemberField, type MemberCell, type MemberFieldDefinition, type MemberPage, type MemberRecord } from '../member-directory-api'
 
 const page = ref<MemberPage | null>(null)
 const department = ref('')
@@ -87,6 +118,9 @@ const saving = ref(false)
 const error = ref('')
 const notice = ref('')
 const editingKey = ref<string | null>(null)
+type AccountEditKind = 'name' | 'department'
+const accountEdit = ref<{ uid: string, kind: AccountEditKind } | null>(null)
+const accountDraft = ref('')
 const draft = ref<unknown>('')
 const draftMulti = ref<string[]>([])
 const visibleFields = computed(() => page.value?.fields.filter(f => shownKeys.value.includes(f.field_key)) || [])
@@ -101,9 +135,15 @@ async function load() {
 	error.value = ''
 	try {
 		const previousKeys = shownKeys.value
+		const hadPage = page.value !== null
 		page.value = await fetchMembers({ department: department.value, search: search.value, offset: offset.value, limit })
-		shownKeys.value = previousKeys.length ? previousKeys.filter(k => page.value!.fields.some(f => f.field_key === k)) : page.value.fields.map(f => f.field_key)
+		if (offset.value > 0 && offset.value >= page.value.pagination.total) {
+			offset.value = Math.max(0, Math.ceil(page.value.pagination.total / limit) - 1) * limit
+			page.value = await fetchMembers({ department: department.value, search: search.value, offset: offset.value, limit })
+		}
+		shownKeys.value = hadPage ? previousKeys.filter(k => page.value!.fields.some(f => f.field_key === k)) : page.value.fields.map(f => f.field_key)
 		editingKey.value = null
+		accountEdit.value = null
 	} catch (e) {
 		error.value = apiErrorMessage(e)
 		page.value = null
@@ -111,9 +151,10 @@ async function load() {
 		loading.value = false
 	}
 }
-function reload() { offset.value = 0; void load() }
+function reload() { if (saving.value || loading.value) return; offset.value = 0; void load() }
 function changePage(direction: number) { offset.value = Math.max(0, offset.value + direction * limit); void load() }
 function startEdit(member: MemberRecord, field: MemberFieldDefinition) {
+	accountEdit.value = null
 	editingKey.value = cellKey(member, field)
 	const value = member.fields[field.field_key]?.value
 	draft.value = value == null ? '' : value
@@ -134,6 +175,35 @@ async function save(member: MemberRecord, field: MemberFieldDefinition) {
 		notice.value = 'Änderung gespeichert.'
 	} catch (e) {
 		error.value = apiErrorMessage(e) + ' Bei Konflikten bitte aktualisieren.'
+	} finally {
+		saving.value = false
+	}
+}
+function startAccountEdit(member: MemberRecord, kind: AccountEditKind) {
+	editingKey.value = null
+	accountEdit.value = { uid: member.user_uid, kind }
+	accountDraft.value = kind === 'name'
+		? member.display_name
+		: member.departments.length === 1 ? member.departments[0] : ''
+	error.value = ''
+	notice.value = ''
+}
+async function saveAccount(member: MemberRecord) {
+	if (saving.value || loading.value || accountEdit.value?.uid !== member.user_uid) return
+	saving.value = true
+	error.value = ''
+	notice.value = ''
+	try {
+		if (accountEdit.value.kind === 'name') {
+			await saveDisplayName(member, accountDraft.value)
+		} else {
+			await changeMemberDepartment(member, accountDraft.value)
+		}
+		accountEdit.value = null
+		notice.value = 'Änderung gespeichert.'
+		await load()
+	} catch (e) {
+		error.value = apiErrorMessage(e)
 	} finally {
 		saving.value = false
 	}

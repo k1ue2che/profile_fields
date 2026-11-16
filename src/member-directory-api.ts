@@ -22,11 +22,14 @@ export type MemberRecord = {
 	user_uid: string
 	display_name: string
 	departments: string[]
+	can_edit_display_name: boolean
+	can_change_department: boolean
 	fields: Record<string, MemberCell>
 }
 export type MemberPage = {
 	fields: MemberFieldDefinition[]
 	departments: string[]
+	editable_departments: string[]
 	items: MemberRecord[]
 	pagination: { total: number, limit: number, offset: number }
 	can_write: boolean
@@ -68,6 +71,16 @@ export const saveMemberField = async(
 		{ headers: jsonHeaders },
 	)
 	return response.data.ocs.data
+}
+
+export const saveDisplayName = async(member: MemberRecord, displayName: string): Promise<void> => {
+	await axios.put(apiUrl(`/members/${encodeURIComponent(member.user_uid)}/display-name`),
+		{ displayName, expectedName: member.display_name }, { headers: jsonHeaders })
+}
+
+export const changeMemberDepartment = async(member: MemberRecord, department: string): Promise<void> => {
+	await axios.put(apiUrl(`/members/${encodeURIComponent(member.user_uid)}/department`),
+		{ department, expectedDepartments: member.departments }, { headers: jsonHeaders })
 }
 
 export const fetchMemberSettings = async(): Promise<MemberDirectorySettings> => {

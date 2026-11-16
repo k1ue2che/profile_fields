@@ -14,6 +14,7 @@ use LogicException;
 use OCA\ProfileFields\AppInfo\Application;
 use OCA\ProfileFields\Service\FieldDefinitionService;
 use OCA\ProfileFields\Service\MemberDirectoryAccessService;
+use OCA\ProfileFields\Service\MemberDirectoryAccountService;
 use OCA\ProfileFields\Service\MemberDirectoryConflictException;
 use OCA\ProfileFields\Service\MemberDirectoryService;
 use OCP\AppFramework\Http\Attribute\ApiRoute;
@@ -21,6 +22,10 @@ use OCP\AppFramework\Http\Attribute\NoAdminRequired;
 use OCP\AppFramework\Http\DataResponse;
 use OCP\AppFramework\OCSController;
 use OCP\IRequest;
+use OCP\Lock\LockedException;
+use OutOfBoundsException;
+use Psr\Log\LoggerInterface;
+use Throwable;
 
 /**
  * Member-only OCS API. Access checks are server-side on every request.
@@ -33,6 +38,8 @@ class MemberDirectoryApiController extends OCSController {
 		private MemberDirectoryAccessService $access,
 		private FieldDefinitionService $definitions,
 		private ?string $userId,
+		private MemberDirectoryAccountService $accounts,
+		private LoggerInterface $logger,
 	) {
 		parent::__construct(Application::APP_ID, $request);
 	}
@@ -52,6 +59,14 @@ class MemberDirectoryApiController extends OCSController {
 		try {
 			$result = $this->directory->listMembers($department, $search, $limit, $offset, $this->userId);
 			$result['can_write'] = $this->access->canWrite($this->userId);
+			$result['editable_departments'] = $this->accounts->editableDepartments($this->userId);
+			foreach ($result['items'] as &$member) {
+				$member['can_edit_display_name'] = $this->accounts->canEditDisplayName($this->userId, $member['user_uid']);
+				$member['can_change_department'] = $result['editable_departments'] !== []
+					&& array_diff($member['departments'], $result['editable_departments']) === []
+					&& $this->accounts->canEditAccount($this->userId, $member['user_uid']);
+			}
+			unset($member);
 			return new DataResponse($result, 200);
 		} catch (InvalidArgumentException $exception) {
 			return new DataResponse(['message' => $exception->getMessage()], 400);
@@ -98,6 +113,48 @@ class MemberDirectoryApiController extends OCSController {
 			return new DataResponse(['message' => $exception->getMessage()], 400);
 		} catch (LogicException) {
 			return new DataResponse(['message' => 'Member directory write access denied.'], 403);
+		}
+	}
+
+	#[NoAdminRequired]
+	#[ApiRoute(verb: 'PUT', url: '/api/v1/member-directory/members/{userUid}/display-name')]
+	public function updateDisplayName(string $userUid, string $displayName, string $expectedName): DataResponse {
+		return $this->updateAccount(fn (string $actorUid) => $this->accounts->updateDisplayName(
+			$actorUid, $userUid, $displayName, $expectedName,
+		));
+	}
+
+	/** @param list<string> $expectedDepartments */
+	#[NoAdminRequired]
+	#[ApiRoute(verb: 'PUT', url: '/api/v1/member-directory/members/{userUid}/department')]
+	public function changeDepartment(string $userUid, string $department, array $expectedDepartments): DataResponse {
+		return $this->updateAccount(fn (string $actorUid) => $this->accounts->changeDepartment(
+			$actorUid, $userUid, $department, $expectedDepartments,
+		));
+	}
+
+	/** @param callable(string): void $update */
+	private function updateAccount(callable $update): DataResponse {
+		if ($this->userId === null) {
+			return new DataResponse(['message' => 'Bitte zuerst anmelden.'], 401);
+		}
+
+		try {
+			$update($this->userId);
+			return new DataResponse([], 200);
+		} catch (MemberDirectoryConflictException $exception) {
+			return new DataResponse(['message' => $exception->getMessage()], 409);
+		} catch (OutOfBoundsException $exception) {
+			return new DataResponse(['message' => $exception->getMessage()], 404);
+		} catch (LockedException) {
+			return new DataResponse(['message' => 'Das Mitglied wird gerade bearbeitet. Bitte aktualisieren.'], 409);
+		} catch (InvalidArgumentException $exception) {
+			return new DataResponse(['message' => $exception->getMessage()], 400);
+		} catch (LogicException $exception) {
+			return new DataResponse(['message' => $exception->getMessage()], 403);
+		} catch (Throwable $exception) {
+			$this->logger->error('Member directory account update failed', ['exception' => $exception]);
+			return new DataResponse(['message' => 'Die Änderung konnte nicht bestätigt werden. Bitte aktualisieren.'], 500);
 		}
 	}
 }

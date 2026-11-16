@@ -74,3 +74,10 @@ Geplante OCS-Routen:
 Die Übersicht erlaubt bis 100 Einträge pro Seite. `department`, `search`, `limit` und `offset` sind Suchparameter. Jeder Lesezugriff liefert nur explizit für das Verzeichnis freigegebene Profilfelder.
 
 **Vor Aktivierung noch zu erledigen:** tatsächliche PHPUnit-/PHP-Lint-Ausführung, API-/Berechtigungsintegrationstests, Frontend und Navigation, Admin-Einstellungsoberfläche, Paralleländerungs-Absicherung im Schreibpfad (die vorhandene ETag-Prüfung ist noch nicht atomar), Sicherung und Testdeployment auf Testcamp. Keine Mitgliederverwaltung auf Basis des derzeitigen Branches installieren.
+
+## Anzeigename und Abteilungszuordnung korrigieren
+
+- Berechtigte Bearbeiter können den Nextcloud-Anzeigenamen eines Mitglieds ändern, sofern dessen Benutzer-Backend diese Änderung unterstützt. Nextcloud-Administrationskonten sind nur für vollwertige Nextcloud-Administratoren bearbeitbar.
+- Abteilungswechsel erfordern zusätzlich eine Nextcloud-Administrationsrolle (Administration oder delegierte Benutzerverwaltung). Die Vereinsbasisgruppe, die Lese- und Schreibgruppen der App sowie `admin` sind für Abteilungswechsel gesperrt, auch wenn sie als Abteilung eingetragen sind. Gruppen müssen das Hinzufügen und Entfernen unterstützen.
+- Beim Wechsel wird die gewählte Abteilung zuerst hinzugefügt. Danach werden bisherige Abteilungsmitgliedschaften entfernt. Weitere Gruppenmitgliedschaften bleiben bestehen. Ist eine bestehende Abteilung schreibgeschützt, wird der Wechsel abgelehnt.
+- Die Nextcloud-Benutzer-ID wird angezeigt und ist fest mit dem Konto verknüpft. Die öffentliche Nextcloud-35-API bietet dafür keine Umbenennung an.

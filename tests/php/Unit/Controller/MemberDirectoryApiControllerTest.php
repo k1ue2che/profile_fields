@@ -13,10 +13,12 @@ use OCA\ProfileFields\Controller\MemberDirectoryApiController;
 use OCA\ProfileFields\Db\FieldDefinition;
 use OCA\ProfileFields\Service\FieldDefinitionService;
 use OCA\ProfileFields\Service\MemberDirectoryAccessService;
+use OCA\ProfileFields\Service\MemberDirectoryAccountService;
 use OCA\ProfileFields\Service\MemberDirectoryConflictException;
 use OCA\ProfileFields\Service\MemberDirectoryService;
 use OCP\IRequest;
 use PHPUnit\Framework\TestCase;
+use Psr\Log\NullLogger;
 
 class MemberDirectoryApiControllerTest extends TestCase {
 	public function testCannotListWithoutExplicitReadPermission(): void {
@@ -74,10 +76,23 @@ class MemberDirectoryApiControllerTest extends TestCase {
 		$this->assertSame(409, $controller->updateField('member', 5, 'x', 'old')->getStatus());
 	}
 
+	public function testDepartmentConflictReturns409(): void {
+		$accounts = $this->createMock(MemberDirectoryAccountService::class);
+		$accounts->expects(self::once())->method('changeDepartment')->with('admin', 'member', '50nY', ['20NY'])
+			->willThrowException(new MemberDirectoryConflictException('Reload and try again.'));
+		$controller = $this->controller(
+			$this->createMock(MemberDirectoryService::class),
+			$this->createMock(MemberDirectoryAccessService::class),
+			accounts: $accounts,
+		);
+		self::assertSame(409, $controller->changeDepartment('member', '50nY', ['20NY'])->getStatus());
+	}
+
 	private function controller(
 		MemberDirectoryService $directory,
 		MemberDirectoryAccessService $access,
 		?FieldDefinitionService $definitions = null,
+		?MemberDirectoryAccountService $accounts = null,
 	): MemberDirectoryApiController {
 		return new MemberDirectoryApiController(
 			$this->createMock(IRequest::class),
@@ -85,6 +100,8 @@ class MemberDirectoryApiControllerTest extends TestCase {
 			$access,
 			$definitions ?? $this->createMock(FieldDefinitionService::class),
 			'admin',
+			$accounts ?? $this->createMock(MemberDirectoryAccountService::class),
+			new NullLogger(),
 		);
 	}
 }
