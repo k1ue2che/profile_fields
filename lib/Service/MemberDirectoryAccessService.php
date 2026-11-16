@@ -25,6 +25,17 @@ class MemberDirectoryAccessService {
 	) {
 	}
 
+	/**
+	 * Administrators may open the directory's management/disabled page
+	 * even when its emergency disable switch is off. This does NOT
+	 * authorize reading or changing member values.
+	 */
+	public function isAdministrator(?string $actorUid): bool {
+		return $actorUid !== null
+			&& $this->users->get($actorUid) !== null
+			&& $this->groups->isAdmin($actorUid);
+	}
+
 	public function canRead(?string $actorUid): bool {
 		if ($actorUid === null || !$this->config->enabled() || $this->users->get($actorUid) === null) {
 			return false;
