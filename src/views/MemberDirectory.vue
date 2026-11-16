@@ -12,39 +12,74 @@ SPDX-License-Identifier: AGPL-3.0-or-later -->
 			<button type="button" class="create-button" :disabled="loading || saving" @click="openCreateForm">+ Neues Mitglied</button>
 		</div>
 		<section v-if="createOpen" class="member-create" aria-label="Neues Mitglied anlegen">
-			<div class="create-heading"><h3>Neues Mitglied</h3><button type="button" :disabled="saving" @click="createOpen = false">Schließen</button></div>
-			<p>Das Konto erhält die Basisgruppe und genau eine Abteilung. Eine Einladung zur Passworteinrichtung wird per E-Mail versendet.</p>
-			<form @submit.prevent="submitCreate">
-				<div class="create-grid">
-					<label>Vorname <input v-model.trim="createDraft.firstName" required maxlength="255" autocomplete="off"></label>
-					<label>Nachname <input v-model.trim="createDraft.lastName" required maxlength="255" autocomplete="off"></label>
-					<label>Kontoname (vor Anlage korrigierbar)
-						<input v-model.trim="createDraft.userUid" required minlength="3" maxlength="64" pattern="[A-Za-z0-9][A-Za-z0-9._-]{2,63}" autocomplete="off">
-					</label>
-					<label>Anzeigename <input v-model.trim="createDraft.displayName" required maxlength="255" autocomplete="off"></label>
-					<label>E-Mail für Einladung <input v-model.trim="createDraft.email" type="email" required maxlength="254" autocomplete="off"></label>
-					<label>Abteilung
-						<select v-model="createDraft.department" required>
-							<option value="" disabled>Abteilung auswählen</option>
-							<option v-for="group in page?.creatable_departments || []" :key="group" :value="group">{{ group }}</option>
-						</select>
-					</label>
-					<label v-for="field in creatableFields" :key="field.id">{{ field.label }}
-						<select v-if="field.type === 'select'" v-model="createDraft.fields[field.field_key]">
-							<option value="">–</option><option v-for="option in field.options || []" :key="option" :value="option">{{ option }}</option>
-						</select>
-						<select v-else-if="field.type === 'boolean'" v-model="createDraft.fields[field.field_key]">
-							<option value="">–</option><option value="true">Ja</option><option value="false">Nein</option>
-						</select>
-						<select v-else-if="field.type === 'multiselect'" v-model="createDraft.fields[field.field_key]" multiple>
-							<option v-for="option in field.options || []" :key="option" :value="option">{{ option }}</option>
-						</select>
-						<input v-else v-model="createDraft.fields[field.field_key]" :type="inputType(field)">
-					</label>
-				</div>
+			<div class="create-heading">
+				<div><h3>Neues Mitglied</h3><p>Das Konto erhält die Basisgruppe und genau eine Abteilung. Die Einladung zur Passworteinrichtung erfolgt per E-Mail.</p></div>
+				<button type="button" class="create-close" :disabled="saving" @click="createOpen = false">Schließen</button>
+			</div>
+			<form class="create-form" @submit.prevent="submitCreate">
+				<fieldset>
+					<legend>Persönliche Daten</legend>
+					<div class="create-grid">
+						<label>Vorname *<input v-model.trim="createDraft.firstName" required maxlength="255" autocomplete="off"></label>
+						<label>Nachname *<input v-model.trim="createDraft.lastName" required maxlength="255" autocomplete="off"></label>
+						<label>Kontoname * <small>Wird automatisch vorgeschlagen und kann vor der Anlage geändert werden.</small>
+							<input v-model.trim="createDraft.userUid" required minlength="3" maxlength="64" pattern="[A-Za-z0-9][A-Za-z0-9._-]{2,63}" autocomplete="off">
+						</label>
+						<label>Anzeigename *<input v-model.trim="createDraft.displayName" required maxlength="255" autocomplete="off"></label>
+						<label class="span-full">E-Mail-Adresse für Einladung *<input v-model.trim="createDraft.email" type="email" required maxlength="254" autocomplete="off"></label>
+					</div>
+				</fieldset>
+				<fieldset>
+					<legend>Vereinszugehörigkeit</legend>
+					<div class="create-grid">
+						<label>Abteilung *
+							<select v-model="createDraft.department" required>
+								<option value="" disabled>Abteilung auswählen</option>
+								<option v-for="group in page?.creatable_departments || []" :key="group" :value="group">{{ group }}</option>
+							</select>
+						</label>
+						<label v-if="memberNumberField">Mitgliedsnummer <small>Vorschlag: {{ page?.next_member_number ?? 'nicht verfügbar' }}. Die Nummer bleibt vor der Anlage korrigierbar.</small>
+							<input v-model.trim="createDraft.fields.mitgliedsnummer" type="text" inputmode="numeric" pattern="[0-9]+" placeholder="Automatisch beim Speichern" autocomplete="off">
+						</label>
+						<label v-if="createField('eintrittsdatum')">Eintrittsdatum
+							<input v-model="createDraft.fields.eintrittsdatum" type="date">
+						</label>
+						<label v-if="createField('beitragsfrei')">Beitragsfrei
+							<select v-model="createDraft.fields.beitragsfrei"><option value="">–</option><option value="true">Ja</option><option value="false">Nein</option></select>
+						</label>
+						<label v-if="createField('beitragsart')">Beitragsart
+							<select v-model="createDraft.fields.beitragsart"><option value="">–</option><option v-for="option in createField('beitragsart')?.options || []" :key="option" :value="option">{{ option }}</option></select>
+						</label>
+					</div>
+				</fieldset>
+				<fieldset v-if="addressFields.length">
+					<legend>Anschrift</legend>
+					<div class="create-grid">
+						<label v-for="field in addressFields" :key="field.id" :class="{ 'span-full': field.field_key === 'vereins_strasse' }">{{ field.label }}
+							<input v-model="createDraft.fields[field.field_key]" :type="inputType(field)">
+						</label>
+					</div>
+				</fieldset>
+				<fieldset v-if="otherCreateFields.length">
+					<legend>Weitere Mitgliedsdaten</legend>
+					<div class="create-grid">
+						<label v-for="field in otherCreateFields" :key="field.id">{{ field.label }}
+							<select v-if="field.type === 'select'" v-model="createDraft.fields[field.field_key]">
+								<option value="">–</option><option v-for="option in field.options || []" :key="option" :value="option">{{ option }}</option>
+							</select>
+							<select v-else-if="field.type === 'boolean'" v-model="createDraft.fields[field.field_key]">
+								<option value="">–</option><option value="true">Ja</option><option value="false">Nein</option>
+							</select>
+							<select v-else-if="field.type === 'multiselect'" v-model="createDraft.fields[field.field_key]" multiple>
+								<option v-for="option in field.options || []" :key="option" :value="option">{{ option }}</option>
+							</select>
+							<input v-else v-model="createDraft.fields[field.field_key]" :type="inputType(field)">
+						</label>
+					</div>
+				</fieldset>
 				<div class="create-submit">
-					<button type="submit" :disabled="saving || loading || !page?.can_create">{{ saving ? 'Lege an …' : 'Mitglied anlegen und einladen' }}</button>
 					<button type="button" :disabled="saving" @click="createOpen = false">Abbrechen</button>
+					<button type="submit" :disabled="saving || loading || !page?.can_create">{{ saving ? 'Lege an …' : 'Mitglied anlegen und einladen' }}</button>
 				</div>
 			</form>
 		</section>
@@ -159,6 +194,14 @@ const createDraft = ref<NewMemberPayload>({ userUid: '', firstName: '', lastName
 const createUidManuallyEdited = ref(false)
 const createDisplayNameManuallyEdited = ref(false)
 const creatableFields = computed(() => page.value?.fields.filter(f => f.can_write && !['vereins_vorname', 'vereins_nachname'].includes(f.field_key)) || [])
+const createField = (key: string) => creatableFields.value.find(f => f.field_key === key)
+const memberNumberField = computed(() => createField('mitgliedsnummer'))
+const addressFields = computed(() => creatableFields.value.filter(f => ['vereins_strasse', 'vereins_hausnummer', 'vereins_plz', 'vereins_ort', 'vereins_land'].includes(f.field_key)))
+const otherCreateFields = computed(() => creatableFields.value.filter(f => !['mitgliedsnummer', 'eintrittsdatum', 'beitragsfrei', 'beitragsart', 'vereins_strasse', 'vereins_hausnummer', 'vereins_plz', 'vereins_ort', 'vereins_land'].includes(f.field_key)))
+const memberNumberManuallyEdited = ref(false)
+watch(() => createDraft.value.fields.mitgliedsnummer, (value, oldValue) => {
+	if (value !== oldValue && value !== page.value?.next_member_number) memberNumberManuallyEdited.value = true
+})
 const suggestedUid = (first: string, last: string): string => {
 	const strip = (text: string) => text.normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/ß/g, 'ss').replace(/[^A-Za-z0-9]/g, '')
 	return (strip(first).slice(0, 3) + strip(last).slice(0, 30)).slice(0, 64)
@@ -174,6 +217,9 @@ watch(() => createDraft.value.displayName, value => {
 	if (value !== [createDraft.value.firstName, createDraft.value.lastName].filter(Boolean).join(' ')) createDisplayNameManuallyEdited.value = true
 })
 function openCreateForm() {
+	if (!memberNumberManuallyEdited.value && page.value?.next_member_number) {
+		createDraft.value.fields.mitgliedsnummer = page.value.next_member_number
+	}
 	createOpen.value = true
 	error.value = ''
 	notice.value = ''
@@ -189,6 +235,7 @@ async function submitCreate() {
 		createDraft.value = { userUid: '', firstName: '', lastName: '', displayName: '', email: '', department: '', fields: {} }
 		createUidManuallyEdited.value = false
 		createDisplayNameManuallyEdited.value = false
+		memberNumberManuallyEdited.value = false
 		offset.value = 0
 		await load()
 		notice.value = result.invitation_sent
@@ -223,6 +270,9 @@ async function load() {
 		const previousKeys = shownKeys.value
 		const hadPage = page.value !== null
 		page.value = await fetchMembers({ department: department.value, search: search.value, offset: offset.value, limit })
+		if (createOpen.value && !memberNumberManuallyEdited.value && page.value.next_member_number) {
+			createDraft.value.fields.mitgliedsnummer = page.value.next_member_number
+		}
 		if (!page.value.can_create) createOpen.value = false
 		if (offset.value > 0 && offset.value >= page.value.pagination.total) {
 			offset.value = Math.max(0, Math.ceil(page.value.pagination.total / limit) - 1) * limit
@@ -319,12 +369,23 @@ small{display:block;font-weight:400;color:var(--color-text-maxcontrast)}
 .error{color:var(--color-error-text)} .notice{color:var(--color-success-text)}
 .member-actions{display:flex;justify-content:flex-end}
 .create-button,.create-submit button[type=submit]{background:var(--color-primary-element);color:var(--color-primary-element-text);border-radius:8px}
-.member-create{padding:16px;border:1px solid var(--color-border);border-radius:12px;background:var(--color-main-background)}
+.member-create{width:min(100%,960px);box-sizing:border-box;padding:clamp(18px,3vw,32px);margin:4px auto 10px;border:1px solid var(--color-border);border-radius:16px;background:var(--color-main-background);box-shadow:0 8px 28px rgba(0,0,0,.10);color:var(--color-main-text)}
+.member-create p{line-height:1.5;color:var(--color-text-maxcontrast);margin:8px 0 0}
+.create-form{display:grid;gap:22px;margin-top:20px}
+.create-form fieldset{border:0;border-top:1px solid var(--color-border);padding:16px 0 0;margin:0;min-width:0}
+.create-form legend{font-size:17px;font-weight:700;padding-right:16px}
+.create-form .span-full{grid-column:1/-1}
+.create-form label{font-size:14px;font-weight:600;line-height:1.4}
+.create-form label small{font-size:12px;font-weight:400;margin:3px 0 2px;white-space:normal}
+.create-form input,.create-form select{min-width:0;min-height:42px;border-radius:8px;padding:9px 11px}
+.create-form input:focus-visible,.create-form select:focus-visible{outline:2px solid var(--color-primary-element);outline-offset:2px}
+.create-close{align-self:start}
+@media(max-width:620px){.create-grid{grid-template-columns:1fr!important}.member-create{padding:16px}.create-heading{gap:12px}}
 .create-heading{display:flex;justify-content:space-between;align-items:center}
 .create-heading h3{margin:0}
-.create-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}
+.create-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px 20px}
 .create-grid label{display:flex;flex-direction:column;gap:6px}
 .create-grid input,.create-grid select{width:100%;max-width:100%;box-sizing:border-box}
-.create-submit{display:flex;gap:12px;margin-top:20px}
+.create-submit{display:flex;justify-content:flex-end;flex-wrap:wrap;gap:12px;margin-top:2px}
 footer{display:flex;align-items:center;gap:16px}
 </style>
