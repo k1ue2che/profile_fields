@@ -231,7 +231,12 @@ async function submitCreate() {
 	try {
 		// The server route requires a recent password confirmation.
 		// Use Nextcloud's own dialog; never handle the account password ourselves.
-		await confirmPassword()
+		try {
+			await confirmPassword()
+		} catch {
+			notice.value = 'Anlage abgebrochen: Die Passwortbestätigung wurde nicht abgeschlossen.'
+			return
+		}
 		const result = await createMember(createDraft.value)
 		createOpen.value = false
 		createDraft.value = { userUid: '', firstName: '', lastName: '', displayName: '', email: '', department: '', fields: {} }
