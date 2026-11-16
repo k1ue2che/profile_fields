@@ -17,6 +17,7 @@ use OCA\ProfileFields\Service\MemberDirectoryAccountService;
 use OCA\ProfileFields\Service\MemberDirectoryConflictException;
 use OCA\ProfileFields\Service\MemberDirectoryCreationService;
 use OCA\ProfileFields\Service\MemberDirectoryService;
+use OCA\ProfileFields\Service\MemberNumberService;
 use OCP\IRequest;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
@@ -159,6 +160,7 @@ class MemberDirectoryApiControllerTest extends TestCase {
 			'admin',
 			$accounts ?? $this->createMock(MemberDirectoryAccountService::class),
 			$creator ?? $this->createMock(MemberDirectoryCreationService::class),
+			$this->createMock(MemberNumberService::class),
 			new NullLogger(),
 		);
 	}
