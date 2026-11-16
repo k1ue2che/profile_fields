@@ -27,6 +27,8 @@ export type MemberRecord = {
 	fields: Record<string, MemberCell>
 }
 export type MemberPage = {
+	can_create: boolean
+	creatable_departments: string[]
 	fields: MemberFieldDefinition[]
 	departments: string[]
 	editable_departments: string[]
@@ -39,6 +41,7 @@ export type MemberDirectorySettings = {
 	baseGroup: string | null
 	readGroups: string[]
 	writeGroups: string[]
+	createGroups: string[]
 	departments: string[]
 	fieldKeys: string[]
 	fieldPermissions: Record<string, { readGroups: string[], writeGroups: string[] }>
@@ -48,11 +51,27 @@ export type MemberDirectorySettingsPayload = {
 	baseGroup: string
 	readGroups: string[]
 	writeGroups: string[]
+	createGroups: string[]
 	departments: string[]
 	fieldKeys: string[]
 	fieldPermissions: Record<string, { readGroups: string[], writeGroups: string[] }>
 }
 export type AvailableField = { id: number, field_key: string, label: string, active: boolean }
+
+export type NewMemberPayload = {
+	userUid: string
+	firstName: string
+	lastName: string
+	displayName: string
+	email: string
+	department: string
+	fields: Record<string, unknown>
+}
+export type NewMemberResult = { user_uid: string, invitation_sent: boolean }
+export const createMember = async(payload: NewMemberPayload): Promise<NewMemberResult> => {
+	const response = await axios.post<{ ocs: { data: NewMemberResult } }>(apiUrl('/members'), payload, { headers: jsonHeaders })
+	return response.data.ocs.data
+}
 
 export const fetchMembers = async(params: { department: string, search: string, limit: number, offset: number }): Promise<MemberPage> => {
 	const response = await axios.get<{ ocs: { data: MemberPage } }>(apiUrl('/members'), { headers, params })
