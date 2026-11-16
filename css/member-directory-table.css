@@ -374,3 +374,26 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* Keep the primary creation action next to the title, not at the far
+ * right edge of an ultrawide member table. */
+#profile-fields-member-directory .member-directory .member-heading {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  gap: 12px 18px;
+  margin-bottom: 8px;
+}
+#profile-fields-member-directory .member-directory .member-heading h2 {
+  margin: 0;
+}
+#profile-fields-member-directory .member-directory .member-heading .create-button {
+  min-height: 40px;
+  padding: 8px 15px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--color-primary-element);
+  color: var(--color-primary-element-text);
+  font-weight: 700;
+}
