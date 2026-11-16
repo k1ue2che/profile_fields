@@ -17,6 +17,31 @@ use OCP\IUserManager;
 use PHPUnit\Framework\TestCase;
 
 class MemberDirectoryAccessServiceTest extends TestCase {
+	public function testAdministratorCanNavigateEvenWhenDirectoryIsDisabledWithoutReadingData(): void {
+		$config = $this->createMock(MemberDirectoryConfig::class);
+		$config->method('enabled')->willReturn(false);
+		$groups = $this->createMock(IGroupManager::class);
+		$groups->method('isAdmin')->with('testadmin')->willReturn(true);
+		$users = $this->createMock(IUserManager::class);
+		$users->method('get')->with('testadmin')->willReturn($this->createMock(IUser::class));
+		$service = new MemberDirectoryAccessService($config, $groups, $users);
+		self::assertTrue($service->isAdministrator('testadmin'));
+		self::assertFalse($service->canRead('testadmin'));
+		self::assertFalse($service->canWrite('testadmin'));
+	}
+
+	public function testOrdinaryMemberDoesNotGainAdministratorNavigation(): void {
+		$config = $this->createMock(MemberDirectoryConfig::class);
+		$config->method('enabled')->willReturn(false);
+		$groups = $this->createMock(IGroupManager::class);
+		$groups->method('isAdmin')->with('member')->willReturn(false);
+		$users = $this->createMock(IUserManager::class);
+		$users->method('get')->with('member')->willReturn($this->createMock(IUser::class));
+		$service = new MemberDirectoryAccessService($config, $groups, $users);
+		self::assertFalse($service->isAdministrator('member'));
+		self::assertFalse($service->isAdministrator(null));
+	}
+
 	public function testDirectoryIsClosedWhenNotConfigured(): void {
 		$config = $this->createMock(MemberDirectoryConfig::class);
 		$config->method('enabled')->willReturn(false);
