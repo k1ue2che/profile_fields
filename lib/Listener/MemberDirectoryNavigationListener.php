@@ -38,7 +38,7 @@ class MemberDirectoryNavigationListener implements IEventListener {
 		}
 
 		$uid = $this->session->getUser()?->getUID();
-		if (!$this->access->canRead($uid)) {
+		if (!$this->access->isAdministrator($uid) && !$this->access->canRead($uid)) {
 			return;
 		}
 
