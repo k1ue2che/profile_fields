@@ -14,6 +14,7 @@ use OCA\ProfileFields\Service\MemberDirectoryAccessService;
 use OCA\ProfileFields\Service\MemberDirectoryAccountService;
 use OCA\ProfileFields\Service\MemberDirectoryConfig;
 use OCA\ProfileFields\Service\MemberDirectoryConflictException;
+use OCP\Group\ISubAdmin;
 use OCP\IGroup;
 use OCP\IGroupManager;
 use OCP\IUser;
@@ -57,8 +58,15 @@ class MemberDirectoryAccountServiceTest extends TestCase {
 		$groups->method('getUserGroupIds')->willReturnCallback(fn (): array => $this->memberships);
 		$groups->method('isInGroup')->willReturnCallback(fn ($uid, $gid): bool => in_array($gid, $this->memberships, true));
 
+		$subAdmins = $this->createMock(ISubAdmin::class);
+		$subAdmins->method('isSubAdmin')->willReturn(true);
+		$subAdmins->method('isSubAdminOfGroup')->willReturnCallback(
+			fn (IUser $actor, IGroup $group): bool => $group->getGID() === '20NY',
+		);
+		$subAdmins->method('isUserAccessible')->willReturn(true);
+
 		$this->service = new MemberDirectoryAccountService(
-			$config, $access, $groups, $users, $this->createMock(ILockingProvider::class), new NullLogger(),
+			$config, $access, $groups, $subAdmins, $users, $this->createMock(ILockingProvider::class), new NullLogger(),
 		);
 	}
 
@@ -69,6 +77,14 @@ class MemberDirectoryAccountServiceTest extends TestCase {
 
 	public function testDepartmentMoveRequiresNextcloudAdministration(): void {
 		$this->groupAdmin = false;
+		$this->expectException(LogicException::class);
+		$this->service->changeDepartment('actor', 'member', '50nY', ['20NY']);
+	}
+
+	public function testDelegatedManagerCannotMoveIntoUnassignedDepartment(): void {
+		$this->groupAdmin = false;
+		self::assertSame(['20NY'], $this->service->editableDepartments('actor'));
+		self::assertFalse($this->service->canChangeDepartment('actor', 'member', ['50nY']));
 		$this->expectException(LogicException::class);
 		$this->service->changeDepartment('actor', 'member', '50nY', ['20NY']);
 	}
