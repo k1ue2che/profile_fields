@@ -128,12 +128,13 @@ export const apiErrorMessage = (error: unknown): string => {
 		const candidate = error as {
 			message?: unknown
 			response?: { data?: {
-				ocs?: { data?: { message?: unknown } }
+				ocs?: { data?: { message?: unknown }, meta?: { message?: unknown } }
 				message?: unknown
 			} }
 		}
 		const messages = [
 			candidate.response?.data?.ocs?.data?.message,
+			candidate.response?.data?.ocs?.meta?.message,
 			candidate.response?.data?.message,
 			candidate.message,
 		]
