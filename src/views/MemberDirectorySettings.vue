@@ -48,7 +48,16 @@ SPDX-License-Identifier: AGPL-3.0-or-later -->
 			</section>
 
 			<section class="member-settings-panel">
-				<h3>3. Profilfelder in der Mitgliederliste</h3>
+				<h3>3. Neue Mitglieder anlegen</h3>
+				<p class="member-settings-hint">Nur Gruppen mit Schreibrechten können zusätzlich die Berechtigung zur Neuanlage erhalten. Administratoren können bei aktivierter Mitgliederverwaltung ebenfalls neue Konten anlegen.</p>
+				<div class="member-settings-grants">
+					<label v-for="group in settings.writeGroups" :key="group" class="member-settings-check">
+						<input v-model="settings.createGroups" type="checkbox" :value="group"> {{ group }}
+					</label>
+				</div>
+			</section>
+			<section class="member-settings-panel">
+				<h3>4. Profilfelder in der Mitgliederliste</h3>
 				<div class="member-settings-field-grid">
 					<label v-for="field in availableFields.filter(f => f.active)" :key="field.id" class="member-settings-check">
 						<input v-model="settings.fieldKeys" type="checkbox" :value="field.field_key">
@@ -59,7 +68,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later -->
 			</section>
 
 			<section v-if="settings.fieldKeys.length" class="member-settings-panel">
-				<h3>4. Feldberechtigungen je Gruppe</h3>
+				<h3>5. Feldberechtigungen je Gruppe</h3>
 				<p class="member-settings-hint">Ein Feld wird nur angezeigt, wenn mindestens eine entsprechende Gruppe ausdrücklich berechtigt ist. Eine Schreibberechtigung schließt das Lesen ein.</p>
 				<div class="member-settings-table-wrap">
 					<table class="member-settings-table">
@@ -127,6 +136,7 @@ async function load() {
 		settings.value = {
 			enabled: current.enabled, baseGroup: current.baseGroup || '',
 			readGroups: current.readGroups, writeGroups: current.writeGroups,
+			createGroups: current.createGroups || [],
 			departments: current.departments, fieldKeys: current.fieldKeys,
 			fieldPermissions: current.fieldPermissions || {},
 		}
@@ -141,7 +151,11 @@ async function save() {
 	notice.value = ''
 	try {
 		const permissions = Object.fromEntries(Object.entries(settings.value.fieldPermissions).filter(([key]) => settings.value?.fieldKeys.includes(key)))
-		const current = await saveMemberSettings({ ...settings.value, fieldPermissions: permissions })
+		const current = await saveMemberSettings({
+			...settings.value,
+			createGroups: settings.value.createGroups.filter(group => settings.value!.writeGroups.includes(group)),
+			fieldPermissions: permissions,
+		})
 		settings.value.enabled = current.enabled
 		notice.value = 'Einstellungen gespeichert.'
 	} catch (e) { error.value = apiErrorMessage(e) } finally { saving.value = false }
