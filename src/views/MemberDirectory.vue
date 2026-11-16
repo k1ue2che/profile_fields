@@ -3,14 +3,14 @@ SPDX-License-Identifier: AGPL-3.0-or-later -->
 <template>
 	<main class="member-directory">
 		<header>
-			<h2>Mitgliederverwaltung</h2>
+			<div class="member-heading">
+				<h2>Mitgliederverwaltung</h2>
+				<button v-if="page?.can_create && page.creatable_departments.length" type="button" class="create-button" :disabled="loading || saving" @click="openCreateForm">+ Neues Mitglied</button>
+			</div>
 			<p>Die Benutzer-ID ist fest mit dem Nextcloud-Konto verknüpft und kann hier nicht geändert werden.</p>
 		</header>
 		<p v-if="error" role="alert" class="error">{{ error }}</p>
 		<p v-if="notice" role="status" class="notice">{{ notice }}</p>
-		<div v-if="page?.can_create && page.creatable_departments.length" class="member-actions">
-			<button type="button" class="create-button" :disabled="loading || saving" @click="openCreateForm">+ Neues Mitglied</button>
-		</div>
 		<section v-if="createOpen" class="member-create" aria-label="Neues Mitglied anlegen">
 			<div class="create-heading">
 				<div><h3>Neues Mitglied</h3><p>Das Konto erhält die Basisgruppe und genau eine Abteilung. Die Einladung zur Passworteinrichtung erfolgt per E-Mail.</p></div>
@@ -23,7 +23,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later -->
 						<label>Vorname *<input v-model.trim="createDraft.firstName" required maxlength="255" autocomplete="off"></label>
 						<label>Nachname *<input v-model.trim="createDraft.lastName" required maxlength="255" autocomplete="off"></label>
 						<label>Kontoname * <small>Wird automatisch vorgeschlagen und kann vor der Anlage geändert werden.</small>
-							<input v-model.trim="createDraft.userUid" required minlength="3" maxlength="64" pattern="[A-Za-z0-9][A-Za-z0-9._-]{2,63}" autocomplete="off">
+							<input v-model.trim="createDraft.userUid" required minlength="3" maxlength="64" pattern="[A-Za-z0-9][A-Za-z0-9._-]{2,63}" title="3–64 Zeichen, ohne Leerzeichen: Buchstaben, Zahlen, Punkt, Unterstrich oder Bindestrich." autocomplete="off">
 						</label>
 						<label>Anzeigename *<input v-model.trim="createDraft.displayName" required maxlength="255" autocomplete="off"></label>
 						<label class="span-full">E-Mail-Adresse für Einladung *<input v-model.trim="createDraft.email" type="email" required maxlength="254" autocomplete="off"></label>
@@ -180,6 +180,8 @@ SPDX-License-Identifier: AGPL-3.0-or-later -->
 
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
+import { confirmPassword } from '@nextcloud/password-confirmation'
+import '@nextcloud/password-confirmation/style.css'
 import { apiErrorMessage, changeMemberDepartment, createMember, fetchMembers, saveDisplayName, saveMemberField, type MemberCell, type MemberFieldDefinition, type MemberPage, type MemberRecord, type NewMemberPayload } from '../member-directory-api'
 
 const page = ref<MemberPage | null>(null)
@@ -227,6 +229,9 @@ async function submitCreate() {
 	error.value = ''
 	notice.value = ''
 	try {
+		// The server route requires a recent password confirmation.
+		// Use Nextcloud's own dialog; never handle the account password ourselves.
+		await confirmPassword()
 		const result = await createMember(createDraft.value)
 		createOpen.value = false
 		createDraft.value = { userUid: '', firstName: '', lastName: '', displayName: '', email: '', department: '', fields: {} }
