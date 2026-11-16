@@ -7,6 +7,7 @@
 
 declare(strict_types=1);
 
+use OCA\ProfileFields\AppInfo\Application;
 use OCP\Util;
 
 Util::addStyle(Application::APP_ID, 'member-directory-table');
