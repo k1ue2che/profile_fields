@@ -28,6 +28,7 @@ class MemberDirectoryConfig {
 	private const DEPARTMENTS = 'member_directory.departments';
 	private const FIELD_KEYS = 'member_directory.field_keys';
 	private const FIELD_PERMISSIONS = 'member_directory.field_permissions';
+	private const CREATE_GROUPS = 'member_directory.create_groups';
 
 	public function __construct(
 		private IConfig $config,
@@ -54,6 +55,11 @@ class MemberDirectoryConfig {
 	/** @return list<string> */
 	public function writeGroups(): array {
 		return $this->readList(self::WRITE_GROUPS);
+	}
+
+	/** @return list<string> */
+	public function createGroups(): array {
+		return $this->readList(self::CREATE_GROUPS);
 	}
 
 	/** @return list<string> */
@@ -106,13 +112,14 @@ class MemberDirectoryConfig {
 		return $result;
 	}
 
-	/** @return array{enabled: bool, baseGroup: ?string, readGroups: list<string>, writeGroups: list<string>, departments: list<string>, fieldKeys: list<string>, fieldPermissions: array<string, array{readGroups: list<string>, writeGroups: list<string>}>} */
+	/** @return array{enabled: bool, baseGroup: ?string, readGroups: list<string>, writeGroups: list<string>, createGroups: list<string>, departments: list<string>, fieldKeys: list<string>, fieldPermissions: array<string, array{readGroups: list<string>, writeGroups: list<string>}>} */
 	public function getSettings(): array {
 		return [
 			'enabled' => $this->enabled(),
 			'baseGroup' => $this->baseGroup(),
 			'readGroups' => $this->readGroups(),
 			'writeGroups' => $this->writeGroups(),
+			'createGroups' => $this->createGroups(),
 			'departments' => $this->departments(),
 			'fieldKeys' => $this->fieldKeys(),
 			'fieldPermissions' => $this->fieldPermissions(),
@@ -125,6 +132,7 @@ class MemberDirectoryConfig {
 	 * @param list<string> $departments
 	 * @param list<string> $fieldKeys
 	 * @param array<string, array{readGroups: list<string>, writeGroups: list<string>}> $fieldPermissions
+	 * @param list<string> $createGroups
 	 * @return array<string, mixed>
 	 */
 	public function save(
@@ -135,6 +143,7 @@ class MemberDirectoryConfig {
 		array $departments,
 		array $fieldKeys,
 		array $fieldPermissions = [],
+		array $createGroups = [],
 	): array {
 		if ($enabled && $baseGroup === '') {
 			throw new InvalidArgumentException('A base group is required to enable the member directory.');
@@ -145,6 +154,10 @@ class MemberDirectoryConfig {
 
 		$readGroups = $this->validGroupList($readGroups);
 		$writeGroups = $this->validGroupList($writeGroups);
+		$createGroups = $this->validGroupList($createGroups);
+		if (array_diff($createGroups, $writeGroups) !== []) {
+			throw new InvalidArgumentException('Creation groups must also have member-directory write access.');
+		}
 		$departments = $this->validGroupList($departments);
 		$fieldKeys = $this->validFieldList($fieldKeys);
 		$fieldPermissions = $this->validateFieldPermissions($fieldPermissions, $fieldKeys, $readGroups, $writeGroups);
@@ -153,6 +166,7 @@ class MemberDirectoryConfig {
 		foreach ([
 			self::READ_GROUPS => $readGroups,
 			self::WRITE_GROUPS => $writeGroups,
+			self::CREATE_GROUPS => $createGroups,
 			self::DEPARTMENTS => $departments,
 			self::FIELD_KEYS => $fieldKeys,
 		] as $key => $values) {

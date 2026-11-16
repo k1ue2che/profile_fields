@@ -16,9 +16,12 @@ use OCA\ProfileFields\Service\FieldDefinitionService;
 use OCA\ProfileFields\Service\MemberDirectoryAccessService;
 use OCA\ProfileFields\Service\MemberDirectoryAccountService;
 use OCA\ProfileFields\Service\MemberDirectoryConflictException;
+use OCA\ProfileFields\Service\MemberDirectoryCreationService;
 use OCA\ProfileFields\Service\MemberDirectoryService;
 use OCP\AppFramework\Http\Attribute\ApiRoute;
 use OCP\AppFramework\Http\Attribute\NoAdminRequired;
+use OCP\AppFramework\Http\Attribute\PasswordConfirmationRequired;
+use OCP\AppFramework\Http\Attribute\UserRateLimit;
 use OCP\AppFramework\Http\DataResponse;
 use OCP\AppFramework\OCSController;
 use OCP\IRequest;
@@ -39,6 +42,7 @@ class MemberDirectoryApiController extends OCSController {
 		private FieldDefinitionService $definitions,
 		private ?string $userId,
 		private MemberDirectoryAccountService $accounts,
+		private MemberDirectoryCreationService $creator,
 		private LoggerInterface $logger,
 	) {
 		parent::__construct(Application::APP_ID, $request);
@@ -59,6 +63,8 @@ class MemberDirectoryApiController extends OCSController {
 		try {
 			$result = $this->directory->listMembers($department, $search, $limit, $offset, $this->userId);
 			$result['can_write'] = $this->access->canWrite($this->userId);
+			$result['can_create'] = $this->access->canCreate($this->userId);
+			$result['creatable_departments'] = $this->creator->availableDepartments($this->userId);
 			$result['editable_departments'] = $this->accounts->editableDepartments($this->userId);
 			foreach ($result['items'] as &$member) {
 				$member['can_edit_display_name'] = $this->accounts->canEditDisplayName($this->userId, $member['user_uid']);
@@ -70,6 +76,44 @@ class MemberDirectoryApiController extends OCSController {
 			return new DataResponse($result, 200);
 		} catch (InvalidArgumentException $exception) {
 			return new DataResponse(['message' => $exception->getMessage()], 400);
+		}
+	}
+
+	/**
+	 * Create one member with a fixed base group, exactly one configured
+	 * department, explicit profile field grants and a password setup invite.
+	 *
+	 * @param array<string, mixed> $fields
+	 */
+	#[NoAdminRequired]
+	#[PasswordConfirmationRequired]
+	#[UserRateLimit(limit: 8, period: 60)]
+	#[ApiRoute(verb: 'POST', url: '/api/v1/member-directory/members')]
+	public function create(
+		string $userUid,
+		string $firstName,
+		string $lastName,
+		string $displayName,
+		string $email,
+		string $department,
+		array $fields = [],
+	): DataResponse {
+		if ($this->userId === null || !$this->access->canCreate($this->userId)) {
+			return new DataResponse(['message' => 'Keine Berechtigung, neue Mitglieder anzulegen.'], 403);
+		}
+		try {
+			return new DataResponse($this->creator->create(
+				$this->userId, $userUid, $firstName, $lastName, $displayName, $email, $department, $fields,
+			), 201);
+		} catch (MemberDirectoryConflictException $exception) {
+			return new DataResponse(['message' => $exception->getMessage()], 409);
+		} catch (InvalidArgumentException $exception) {
+			return new DataResponse(['message' => $exception->getMessage()], 400);
+		} catch (LogicException $exception) {
+			return new DataResponse(['message' => $exception->getMessage()], 403);
+		} catch (Throwable $exception) {
+			$this->logger->error('Member directory account creation failed', ['exception' => $exception]);
+			return new DataResponse(['message' => 'Konto konnte nicht vollständig angelegt werden. Bitte die Nextcloud-Benutzerverwaltung prüfen.'], 500);
 		}
 	}
 

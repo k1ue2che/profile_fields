@@ -53,6 +53,17 @@ class MemberDirectoryAccessService {
 			|| $this->belongsToAny($actorUid, $this->config->writeGroups());
 	}
 
+	/**
+	 * Account creation is a separate, explicit permission. Administrators can
+	 * create accounts while configured writers require an additional grant.
+	 */
+	public function canCreate(?string $actorUid): bool {
+		return $this->canWrite($actorUid)
+			&& $actorUid !== null
+			&& ($this->groups->isAdmin($actorUid)
+				|| $this->belongsToAny($actorUid, $this->config->createGroups()));
+	}
+
 	public function isMember(string $targetUid): bool {
 		$baseGroup = $this->config->baseGroup();
 		return $this->config->enabled()

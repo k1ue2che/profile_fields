@@ -54,6 +54,7 @@ class MemberDirectorySettingsApiController extends OCSController {
 		array $departments = [],
 		array $fieldKeys = [],
 		array $fieldPermissions = [],
+		array $createGroups = [],
 	): DataResponse {
 		if (!$this->isAdmin()) {
 			return new DataResponse(['message' => 'Administrator permission required.'], 403);
@@ -67,6 +68,7 @@ class MemberDirectorySettingsApiController extends OCSController {
 				$departments,
 				$fieldKeys,
 				$fieldPermissions,
+				$createGroups,
 			));
 		} catch (InvalidArgumentException $e) {
 			return new DataResponse(['message' => $e->getMessage()], 400);

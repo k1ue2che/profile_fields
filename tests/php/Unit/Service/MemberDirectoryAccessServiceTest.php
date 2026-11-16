@@ -69,6 +69,42 @@ class MemberDirectoryAccessServiceTest extends TestCase {
 		self::assertTrue($service->canWrite('editor'));
 	}
 
+	public function testCreationRequiresSeparateExplicitPermission(): void {
+		$config = $this->createMock(MemberDirectoryConfig::class);
+		$config->method('enabled')->willReturn(true);
+		$config->method('writeGroups')->willReturn(['Vorstand']);
+		$config->method('createGroups')->willReturn([]);
+		$groups = $this->createMock(IGroupManager::class);
+		$groups->method('isAdmin')->willReturn(false);
+		$groups->method('groupExists')->willReturn(true);
+		$groups->method('isInGroup')->willReturnCallback(
+			static fn (string $uid, string $group): bool => $uid === 'editor' && $group === 'Vorstand',
+		);
+		$users = $this->createMock(IUserManager::class);
+		$users->method('get')->willReturn($this->createMock(IUser::class));
+		$service = new MemberDirectoryAccessService($config, $groups, $users);
+		self::assertTrue($service->canWrite('editor'));
+		self::assertFalse($service->canCreate('editor'));
+		self::assertFalse($service->canCreate(null));
+	}
+
+	public function testExplicitCreationGroupCanCreate(): void {
+		$config = $this->createMock(MemberDirectoryConfig::class);
+		$config->method('enabled')->willReturn(true);
+		$config->method('writeGroups')->willReturn(['Vorstand']);
+		$config->method('createGroups')->willReturn(['Vorstand']);
+		$groups = $this->createMock(IGroupManager::class);
+		$groups->method('isAdmin')->willReturn(false);
+		$groups->method('groupExists')->willReturn(true);
+		$groups->method('isInGroup')->willReturnCallback(
+			static fn (string $uid, string $gid): bool => $uid === 'editor' && $gid === 'Vorstand',
+		);
+		$users = $this->createMock(IUserManager::class);
+		$users->method('get')->willReturn($this->createMock(IUser::class));
+		$service = new MemberDirectoryAccessService($config, $groups, $users);
+		self::assertTrue($service->canCreate('editor'));
+	}
+
 	public function testNonMembersCannotBeEdited(): void {
 		$config = $this->createMock(MemberDirectoryConfig::class);
 		$config->method('enabled')->willReturn(true);
