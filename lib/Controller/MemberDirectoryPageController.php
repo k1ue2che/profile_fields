@@ -33,6 +33,9 @@ class MemberDirectoryPageController extends Controller {
 	#[NoCSRFRequired]
 	#[FrontpageRoute(verb: 'GET', url: '/members')]
 	public function index(): TemplateResponse {
+		if ($this->access->isAdministrator($this->userId) && !$this->access->canRead($this->userId)) {
+			return new TemplateResponse(Application::APP_ID, 'member-directory-disabled-admin');
+		}
 		if (!$this->access->canRead($this->userId)) {
 			return new TemplateResponse(Application::APP_ID, 'member-directory-denied', [], TemplateResponse::RENDER_AS_USER, 403);
 		}
