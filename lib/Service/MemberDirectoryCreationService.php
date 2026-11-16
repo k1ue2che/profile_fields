@@ -44,6 +44,7 @@ class MemberDirectoryCreationService {
 		private IGroupManager $groups,
 		private FieldDefinitionService $definitions,
 		private FieldValueService $values,
+		private MemberNumberService $memberNumbers,
 		private ILockingProvider $locks,
 		private ISecureRandom $random,
 		private Defaults $defaults,
@@ -122,6 +123,11 @@ class MemberDirectoryCreationService {
 		// One source of truth for given and family name at account creation.
 		$fields['vereins_vorname'] = $firstName;
 		$fields['vereins_nachname'] = $lastName;
+		$numberInput = $fields[MemberNumberService::FIELD_KEY] ?? null;
+		$autoNumber = $numberInput === null || $numberInput === '';
+		if ($autoNumber) {
+			unset($fields[MemberNumberService::FIELD_KEY]);
+		}
 		if (count($fields) > 100) {
 			throw new InvalidArgumentException('Zu viele Profilfelder.');
 		}
@@ -158,13 +164,21 @@ class MemberDirectoryCreationService {
 				throw new MemberDirectoryConflictException('Der Kontoname ist bereits vergeben.');
 			}
 			$this->users->validateUserId($userUid, true);
+			if ($autoNumber) {
+				$numberDefinition = $this->memberNumbers->writableDefinition($actorUid);
+				$next = $this->memberNumbers->suggest($actorUid);
+				if ($numberDefinition === null || $next === null) {
+					throw new LogicException('Die Mitgliedsnummer kann nicht automatisch vergeben werden.');
+				}
+				$this->values->normalizeValue($numberDefinition, $next);
+				$prepared[] = [$numberDefinition, $next];
+			}
 			foreach ($prepared as [$definition, $raw]) {
 				if (!$this->access->canWriteField($actorUid, $definition)) {
 					throw new LogicException('Die Feldberechtigungen wurden inzwischen geändert.');
 				}
-				if ($definition->getFieldKey() === 'mitgliedsnummer'
-					&& $this->values->findByDefinitionAndRawValue($definition, $raw) !== []) {
-					throw new MemberDirectoryConflictException('Diese Mitgliedsnummer ist bereits vergeben.');
+				if ($definition->getFieldKey() === MemberNumberService::FIELD_KEY) {
+					$this->memberNumbers->assertAvailable($definition, $raw);
 				}
 			}
 			$password = $this->random->generate(32, ISecureRandom::CHAR_ALPHANUMERIC)
