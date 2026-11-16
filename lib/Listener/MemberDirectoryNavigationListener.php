@@ -46,7 +46,7 @@ class MemberDirectoryNavigationListener implements IEventListener {
 			'id' => Application::APP_ID,
 			'app' => Application::APP_ID,
 			'name' => 'Mitgliederverwaltung',
-			'href' => $this->urls->linkToRoute('profile_fields.member_directory_page.index'),
+			'href' => $this->urls->linkToRoute('profile_fields.memberdirectorypage.index'),
 			'icon' => $this->urls->imagePath(Application::APP_ID, 'app.svg'),
 			'order' => 80,
 			'type' => 'link',
