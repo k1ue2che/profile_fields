@@ -64,7 +64,7 @@ class MemberDirectoryApiController extends OCSController {
 				$member['can_edit_display_name'] = $this->accounts->canEditDisplayName($this->userId, $member['user_uid']);
 				$member['can_change_department'] = $result['editable_departments'] !== []
 					&& array_diff($member['departments'], $result['editable_departments']) === []
-					&& $this->accounts->canEditAccount($this->userId, $member['user_uid']);
+					&& $this->accounts->canChangeDepartment($this->userId, $member['user_uid'], $member['departments']);
 			}
 			unset($member);
 			return new DataResponse($result, 200);
