@@ -18,6 +18,7 @@ use OCP\AppFramework\Http\Attribute\NoAdminRequired;
 use OCP\AppFramework\Http\TemplateResponse;
 use OCP\IRequest;
 use OCP\IURLGenerator;
+use OCP\Util;
 
 class MemberDirectoryPageController extends Controller {
 	public function __construct(
@@ -43,6 +44,10 @@ class MemberDirectoryPageController extends Controller {
 		if (!$this->access->canRead($this->userId)) {
 			return new TemplateResponse(Application::APP_ID, 'member-directory-denied', [], TemplateResponse::RENDER_AS_USER, 403);
 		}
+		// Register assets before layout rendering, not from the inner template.
+		// Otherwise Nextcloud may miss the styles on this frontend page.
+		Util::addStyle(Application::APP_ID, 'member-directory-table');
+		Util::addScript(Application::APP_ID, 'profile_fields-member-directory');
 		return new TemplateResponse(Application::APP_ID, 'member-directory');
 	}
 }
