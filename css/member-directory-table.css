@@ -433,3 +433,177 @@
     max-height: 68dvh;
   }
 }
+
+
+/* Mobile: use a true viewport-sized sheet rather than allowing the member
+ * table or Nextcloud app pane to clip the creation form. */
+@media (max-width: 760px) {
+  #profile-fields-member-directory .member-directory {
+    width: 100%;
+    min-width: 0;
+    padding: 12px 10px 30px;
+  }
+
+  #profile-fields-member-directory .member-directory > header h2 {
+    font-size: 21px;
+  }
+
+  #profile-fields-member-directory .member-directory .member-heading {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  #profile-fields-member-directory .member-create {
+    position: fixed;
+    z-index: 3000;
+    top: max(8px, env(safe-area-inset-top, 0px));
+    right: max(8px, env(safe-area-inset-right, 0px));
+    bottom: max(8px, env(safe-area-inset-bottom, 0px));
+    left: max(8px, env(safe-area-inset-left, 0px));
+    box-sizing: border-box;
+    width: auto;
+    min-width: 0;
+    max-width: none;
+    height: auto;
+    max-height: none;
+    margin: 0;
+    padding: 14px 12px 10px;
+    border-radius: 12px;
+    box-shadow: 0 0 0 200vmax rgba(0,0,0,.5);
+    overflow: hidden;
+  }
+
+  #profile-fields-member-directory .member-create .create-heading {
+    display: flex;
+    flex: 0 0 auto;
+    gap: 8px;
+    align-items: flex-start;
+  }
+
+  #profile-fields-member-directory .member-create .create-heading h3 {
+    font-size: 19px;
+    margin-bottom: 4px;
+  }
+
+  #profile-fields-member-directory .member-create .create-heading p {
+    font-size: 12px;
+    line-height: 1.35;
+  }
+
+  #profile-fields-member-directory .member-create .create-close {
+    min-width: 76px;
+    min-height: 40px;
+    padding: 7px;
+  }
+
+  #profile-fields-member-directory .member-create .create-form {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    min-height: 0;
+    height: auto;
+    max-height: none;
+    flex: 1 1 auto;
+    overflow-x: hidden;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    scrollbar-gutter: auto;
+    padding: 10px 4px 0 0;
+    margin-top: 10px;
+  }
+
+  #profile-fields-member-directory .member-create .create-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+  }
+
+  #profile-fields-member-directory .member-create .create-grid > label,
+  #profile-fields-member-directory .member-create .create-grid > label.span-full {
+    grid-column: 1 / -1;
+    min-width: 0;
+  }
+
+  #profile-fields-member-directory .member-create fieldset {
+    padding-top: 11px;
+    min-width: 0;
+  }
+
+  #profile-fields-member-directory .member-create legend {
+    font-size: 15px;
+  }
+
+  #profile-fields-member-directory .member-create .create-grid input,
+  #profile-fields-member-directory .member-create .create-grid select {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    min-height: 44px;
+    font-size: 16px; /* Prevent iOS auto zoom on focus */
+  }
+
+  #profile-fields-member-directory .member-create .create-submit {
+    display: grid;
+    position: sticky;
+    bottom: 0;
+    z-index: 2;
+    grid-template-columns: minmax(0,1fr) minmax(0,1.6fr);
+    gap: 8px;
+    width: 100%;
+    padding: 10px 0 max(5px, env(safe-area-inset-bottom, 0px));
+    margin: 0;
+    background: var(--color-main-background);
+  }
+
+  #profile-fields-member-directory .member-create .create-submit button {
+    white-space: normal;
+    min-width: 0;
+    min-height: 44px;
+    padding: 7px 8px;
+    font-size: 13px;
+  }
+
+  #profile-fields-member-directory .toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 9px;
+  }
+
+  #profile-fields-member-directory .toolbar > label {
+    min-width: min(100%, 160px);
+    flex: 1 1 160px;
+  }
+
+  #profile-fields-member-directory .toolbar input,
+  #profile-fields-member-directory .toolbar select {
+    max-width: 100%;
+    min-width: 0 !important;
+  }
+
+  #profile-fields-member-directory .table-scroll {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  #profile-fields-member-directory .member-directory table {
+    min-width: 780px;
+    width: max-content;
+  }
+
+  #profile-fields-member-directory .member-directory th,
+  #profile-fields-member-directory .member-directory td {
+    white-space: nowrap;
+  }
+}
+
+@media (max-width: 375px) {
+  #profile-fields-member-directory .member-create { padding: 10px 9px 8px; }
+  #profile-fields-member-directory .member-create .create-heading h3 { font-size: 17px; }
+  #profile-fields-member-directory .member-create .create-heading p { font-size: 11px; }
+}
