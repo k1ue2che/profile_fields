@@ -7,5 +7,7 @@
 
 declare(strict_types=1);
 
-
+// Styles and scripts are registered in MemberDirectoryPageController
+// before Nextcloud renders the page layout.
+?>
 <div id="profile-fields-member-directory"></div>
