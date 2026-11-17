@@ -192,9 +192,7 @@ class MemberDirectoryCreationService {
 				if (!$created instanceof IUser || $created->getUID() !== $userUid) {
 					throw new RuntimeException('Nextcloud konnte das Konto nicht erstellen.');
 				}
-				if (!$created->canChangeDisplayName() || !$created->setDisplayName($displayName)) {
-					throw new RuntimeException('Der Anzeigename konnte nicht übernommen werden.');
-				}
+				self::ensureInitialDisplayName($created, $displayName);
 				$created->setSystemEMailAddress($email);
 				foreach ([$base, $destination] as $group) {
 					$group->addUser($created);
@@ -242,6 +240,26 @@ class MemberDirectoryCreationService {
 			return ['user_uid' => $userUid, 'invitation_sent' => $sent];
 		} finally {
 			$this->locks->releaseLock($lockKey, ILockingProvider::LOCK_EXCLUSIVE);
+		}
+	}
+
+	/**
+	 * A newly created account can already expose the wanted display name.
+	 * Avoid calling setDisplayName() for a no-op: some backends return false.
+	 */
+	public static function ensureInitialDisplayName(IUser $user, string $displayName): void {
+		if ($user->getDisplayName() === $displayName) {
+			return;
+		}
+		if (!$user->canChangeDisplayName()) {
+			throw new RuntimeException('Das Benutzerverzeichnis erlaubt keine Änderung des Anzeigenamens.');
+		}
+		$changed = $user->setDisplayName($displayName);
+		if (!$changed && $user->getDisplayName() !== $displayName) {
+			throw new RuntimeException('Der Anzeigename konnte nicht übernommen werden.');
+		}
+		if ($user->getDisplayName() !== $displayName) {
+			throw new RuntimeException('Der Anzeigename wurde nicht gespeichert.');
 		}
 	}
 
