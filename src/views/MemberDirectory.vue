@@ -56,7 +56,14 @@ SPDX-License-Identifier: AGPL-3.0-or-later -->
 					<legend>Anschrift</legend>
 					<div class="create-grid">
 						<label v-for="field in addressFields" :key="field.id" :class="{ 'span-full': field.field_key === 'vereins_strasse' }">{{ field.label }}
-							<input v-model="createDraft.fields[field.field_key]" :type="inputType(field)">
+							<select v-if="field.type === 'select'" v-model="createDraft.fields[field.field_key]">
+								<option value="">Bitte auswählen</option>
+								<option v-for="option in field.options || []" :key="option" :value="option">{{ field.field_key === 'vereins_land' ? countryLabel(option) : option }}</option>
+							</select>
+							<select v-else-if="field.type === 'boolean'" v-model="createDraft.fields[field.field_key]">
+								<option value="">–</option><option value="true">Ja</option><option value="false">Nein</option>
+							</select>
+							<input v-else v-model="createDraft.fields[field.field_key]" :type="inputType(field)">
 						</label>
 					</div>
 				</fieldset>
@@ -199,6 +206,11 @@ const creatableFields = computed(() => page.value?.fields.filter(f => f.can_writ
 const createField = (key: string) => creatableFields.value.find(f => f.field_key === key)
 const memberNumberField = computed(() => createField('mitgliedsnummer'))
 const addressFields = computed(() => creatableFields.value.filter(f => ['vereins_strasse', 'vereins_hausnummer', 'vereins_plz', 'vereins_ort', 'vereins_land'].includes(f.field_key)))
+const countryNames: Record<string, string> = {
+	DE: 'Deutschland', AT: 'Österreich', CH: 'Schweiz', PL: 'Polen', NL: 'Niederlande',
+	CZ: 'Tschechien', FR: 'Frankreich', ES: 'Spanien', IT: 'Italien', SI: 'Slowenien',
+}
+const countryLabel = (code: string): string => countryNames[code] ? `${countryNames[code]} (${code})` : code
 const otherCreateFields = computed(() => creatableFields.value.filter(f => !['mitgliedsnummer', 'eintrittsdatum', 'beitragsfrei', 'beitragsart', 'vereins_strasse', 'vereins_hausnummer', 'vereins_plz', 'vereins_ort', 'vereins_land'].includes(f.field_key)))
 const memberNumberManuallyEdited = ref(false)
 const suggestedUid = (first: string, last: string): string => {
