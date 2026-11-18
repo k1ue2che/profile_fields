@@ -14,6 +14,13 @@ use OCA\ProfileFields\Service\MemberDirectoryAccessService;
 use OCA\ProfileFields\Service\MemberDirectoryAccountService;
 use OCA\ProfileFields\Service\MemberDirectoryConfig;
 use OCA\ProfileFields\Service\MemberDirectoryConflictException;
+use OCP\Accounts\IAccountManager;
+use OCP\IConfig;
+use OCP\IURLGenerator;
+use OCP\Defaults;
+use OCP\IL10N;
+use OCP\Mail\IMailer;
+use OCP\Security\VerificationToken\IVerificationToken;
 use OCP\Group\ISubAdmin;
 use OCP\IGroup;
 use OCP\IGroupManager;
@@ -75,6 +82,13 @@ class MemberDirectoryAccountServiceTest extends TestCase {
 
 		$this->service = new MemberDirectoryAccountService(
 			$config, $access, $groups, $subAdmins, $users, $this->createMock(ILockingProvider::class), new NullLogger(),
+			$this->createMock(IAccountManager::class),
+			$this->createMock(IConfig::class),
+			$this->createMock(IVerificationToken::class),
+			$this->createMock(IURLGenerator::class),
+			$this->createMock(IMailer::class),
+			$this->createMock(Defaults::class),
+			$this->createMock(IL10N::class),
 		);
 	}
 
