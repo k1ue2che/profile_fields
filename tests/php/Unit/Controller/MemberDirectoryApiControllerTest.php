@@ -128,7 +128,7 @@ class MemberDirectoryApiControllerTest extends TestCase {
 		$creator = $this->createMock(MemberDirectoryCreationService::class);
 		$creator->expects(self::once())->method('create')->with(
 			'admin', 'NewMember', 'New', 'Member', 'New Member', 'test@example.org', '20NY',
-			['member_number' => '782'],
+			['member_number' => '782'], '',
 		)->willReturn(['user_uid' => 'NewMember', 'invitation_sent' => true]);
 
 		$controller = $this->controller(
@@ -142,6 +142,26 @@ class MemberDirectoryApiControllerTest extends TestCase {
 		);
 		self::assertSame(201, $response->getStatus());
 		self::assertSame(['user_uid' => 'NewMember', 'invitation_sent' => true], $response->getData());
+	}
+
+	public function testNewMemberBirthdateIsForwardedToAccountCreation(): void {
+		$access = $this->createMock(MemberDirectoryAccessService::class);
+		$access->method('canCreate')->with('admin')->willReturn(true);
+		$creator = $this->createMock(MemberDirectoryCreationService::class);
+		$creator->expects(self::once())->method('create')->with(
+			'admin', 'NewMember', 'New', 'Member', 'New Member', 'test@example.org', '20NY', [],
+			'2000-02-29',
+		)->willReturn(['user_uid' => 'NewMember', 'invitation_sent' => true]);
+		$controller = $this->controller(
+			$this->createMock(MemberDirectoryService::class),
+			$access,
+			creator: $creator,
+		);
+		$response = $controller->create(
+			'NewMember', 'New', 'Member', 'New Member', 'test@example.org', '20NY', [],
+			'2000-02-29',
+		);
+		self::assertSame(201, $response->getStatus());
 	}
 
 	public function testCreatingDuplicateMemberReturnsConflict(): void {
