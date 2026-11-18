@@ -182,6 +182,13 @@ SPDX-License-Identifier: AGPL-3.0-or-later -->
 				</select>
 			</label>
 			<button type="button" :disabled="loading || saving" @click="reload">Suchen / Aktualisieren</button>
+			<label>Einträge pro Seite
+				<select v-model.number="limit" :disabled="loading || saving" @change="changeLimit">
+					<option :value="50">50</option>
+					<option :value="100">100</option>
+					<option :value="0">Alle anzeigen</option>
+				</select>
+			</label>
 			<details v-if="page" class="columns">
 				<summary>Zusätzliche Spalten auswählen</summary>
 				<label class="column-choice"><input v-model="showDepartment" type="checkbox"> Abteilung</label>
@@ -195,14 +202,14 @@ SPDX-License-Identifier: AGPL-3.0-or-later -->
 			<table class="member-summary-table">
 				<thead>
 					<tr>
-						<th v-if="showMemberNumber" scope="col" class="member-number-column">Nr.</th>
-						<th scope="col">Nachname</th>
-						<th scope="col">Vorname</th>
-						<th scope="col">Straße / Nr.</th>
-						<th scope="col">PLZ</th>
-						<th scope="col">Ort</th>
-						<th v-if="showDepartment" scope="col">Abteilung</th>
-						<th v-for="field in visibleFields" :key="field.id" scope="col">{{ field.label }}</th>
+						<th v-if="showMemberNumber" scope="col" class="member-number-column" :aria-sort="ariaSort('mitgliedsnummer')"><button type="button" class="member-sort" :disabled="loading || saving" @click="changeSort('mitgliedsnummer')">Nr. {{ sortMark('mitgliedsnummer') }}</button></th>
+						<th scope="col"  :aria-sort="ariaSort('vereins_nachname')"><button v-if="canSort('vereins_nachname')" type="button" class="member-sort" :disabled="loading || saving" @click="changeSort('vereins_nachname')">Nachname {{ sortMark('vereins_nachname') }}</button><span v-else>Nachname</span></th>
+						<th scope="col"  :aria-sort="ariaSort('vereins_vorname')"><button v-if="canSort('vereins_vorname')" type="button" class="member-sort" :disabled="loading || saving" @click="changeSort('vereins_vorname')">Vorname {{ sortMark('vereins_vorname') }}</button><span v-else>Vorname</span></th>
+						<th scope="col"  :aria-sort="ariaSort('vereins_strasse')"><button v-if="canSort('vereins_strasse')" type="button" class="member-sort" :disabled="loading || saving" @click="changeSort('vereins_strasse')">Straße / Nr. {{ sortMark('vereins_strasse') }}</button><span v-else>Straße / Nr.</span></th>
+						<th scope="col"  :aria-sort="ariaSort('vereins_plz')"><button v-if="canSort('vereins_plz')" type="button" class="member-sort" :disabled="loading || saving" @click="changeSort('vereins_plz')">PLZ {{ sortMark('vereins_plz') }}</button><span v-else>PLZ</span></th>
+						<th scope="col"  :aria-sort="ariaSort('vereins_ort')"><button v-if="canSort('vereins_ort')" type="button" class="member-sort" :disabled="loading || saving" @click="changeSort('vereins_ort')">Ort {{ sortMark('vereins_ort') }}</button><span v-else>Ort</span></th>
+						<th v-if="showDepartment" scope="col"  :aria-sort="ariaSort('department')"><button type="button" class="member-sort" :disabled="loading || saving" @click="changeSort('department')">Abteilung {{ sortMark('department') }}</button></th>
+						<th v-for="field in visibleFields" :key="field.id" scope="col" :aria-sort="ariaSort(field.field_key)"><button type="button" class="member-sort" :disabled="loading || saving" @click="changeSort(field.field_key)">{{ field.label }} {{ sortMark(field.field_key) }}</button></th>
 						<th scope="col">Aktion</th>
 					</tr>
 				</thead>
@@ -228,9 +235,12 @@ SPDX-License-Identifier: AGPL-3.0-or-later -->
 		</div>
 		<footer v-if="page">
 			<span>{{ page.pagination.total }} Mitglieder</span>
-			<button type="button" :disabled="loading || saving || offset === 0" @click="changePage(-1)">Zurück</button>
-			<span>Seite {{ Math.floor(offset / limit) + 1 }}</span>
-			<button type="button" :disabled="loading || saving || offset + limit >= page.pagination.total" @click="changePage(1)">Weiter</button>
+			<template v-if="limit > 0">
+				<button type="button" :disabled="loading || saving || offset === 0" @click="changePage(-1)">Zurück</button>
+				<span>Seite {{ Math.floor(offset / limit) + 1 }}</span>
+				<button type="button" :disabled="loading || saving || offset + limit >= page.pagination.total" @click="changePage(1)">Weiter</button>
+			</template>
+			<span v-else>Alle {{ page.pagination.total }} Mitglieder</span>
 		</footer>
 	</main>
 </template>
@@ -245,7 +255,9 @@ const page = ref<MemberPage | null>(null)
 const department = ref('')
 const search = ref('')
 const offset = ref(0)
-const limit = 50
+const limit = ref(50)
+const sortBy = ref('display_name')
+const sortDirection = ref<'asc' | 'desc'>('asc')
 const shownKeys = ref<string[]>([])
 const loading = ref(false)
 const createOpen = ref(false)
@@ -321,6 +333,27 @@ const showDepartment = ref(false)
 const showMemberNumber = computed(() => page.value?.fields.some(field => field.field_key === 'mitgliedsnummer') ?? false)
 const additionalFields = computed(() => page.value?.fields.filter(field => !defaultTableKeys.has(field.field_key) && field.field_key !== 'mitgliedsnummer') || [])
 const visibleFields = computed(() => additionalFields.value.filter(field => shownKeys.value.includes(field.field_key)))
+const canSort = (fieldKey: string): boolean => page.value?.fields.some(field => field.field_key === fieldKey) ?? false
+const ariaSort = (fieldKey: string): 'ascending' | 'descending' | 'none' => sortBy.value === fieldKey ? (sortDirection.value === 'asc' ? 'ascending' : 'descending') : 'none'
+const sortMark = (fieldKey: string): string => sortBy.value === fieldKey ? (sortDirection.value === 'asc' ? '▲' : '▼') : '↕'
+function changeSort(fieldKey: string) {
+	if (saving.value || loading.value || (fieldKey !== 'department' && fieldKey !== 'display_name' && !canSort(fieldKey))) return
+	if (sortBy.value === fieldKey) {
+		sortDirection.value = sortDirection.value === 'asc' ? 'desc' : 'asc'
+	} else {
+		sortBy.value = fieldKey
+		sortDirection.value = 'asc'
+	}
+	offset.value = 0
+	closeEdit()
+	void load()
+}
+function changeLimit() {
+	if (saving.value || loading.value) return
+	offset.value = 0
+	closeEdit()
+	void load()
+}
 const display = (value: unknown): string => value == null || value === '' ? '–' : Array.isArray(value) ? value.join(', ') : typeof value === 'boolean' ? (value ? 'Ja' : 'Nein') : String(value)
 const memberValue = (member: MemberRecord, key: string, fallback = '–'): string => {
 	const value = member.fields[key]?.value
@@ -416,14 +449,14 @@ async function load() {
 	try {
 		const oldKeys = shownKeys.value
 		const hadPage = page.value !== null
-		page.value = await fetchMembers({ department: department.value, search: search.value, offset: offset.value, limit })
+		page.value = await fetchMembers({ department: department.value, search: search.value, offset: offset.value, limit: limit.value, sortBy: sortBy.value, sortDirection: sortDirection.value })
 		if (createOpen.value && !memberNumberManuallyEdited.value && page.value.next_member_number) {
 			createDraft.value.fields.mitgliedsnummer = page.value.next_member_number
 		}
 		if (!page.value.can_create) createOpen.value = false
-		if (offset.value > 0 && offset.value >= page.value.pagination.total) {
-			offset.value = Math.max(0, Math.ceil(page.value.pagination.total / limit) - 1) * limit
-			page.value = await fetchMembers({ department: department.value, search: search.value, offset: offset.value, limit })
+		if (limit.value > 0 && offset.value > 0 && offset.value >= page.value.pagination.total) {
+			offset.value = Math.max(0, Math.ceil(page.value.pagination.total / limit.value) - 1) * limit.value
+			page.value = await fetchMembers({ department: department.value, search: search.value, offset: offset.value, limit: limit.value, sortBy: sortBy.value, sortDirection: sortDirection.value })
 		}
 		shownKeys.value = hadPage ? oldKeys.filter(key => additionalFields.value.some(field => field.field_key === key)) : []
 	} catch (e) {
@@ -434,7 +467,7 @@ async function load() {
 	}
 }
 function reload() { if (saving.value || loading.value) return; offset.value = 0; closeEdit(); void load() }
-function changePage(direction: number) { if (saving.value || loading.value) return; offset.value = Math.max(0, offset.value + direction * limit); closeEdit(); void load() }
+function changePage(direction: number) { if (saving.value || loading.value || limit.value === 0) return; offset.value = Math.max(0, offset.value + direction * limit.value); closeEdit(); void load() }
 async function saveEdit() {
 	const member = editingMember.value
 	if (!member || !page.value || saving.value || loading.value || !hasEditChanges.value) return
