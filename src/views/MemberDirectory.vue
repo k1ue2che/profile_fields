@@ -116,6 +116,63 @@ SPDX-License-Identifier: AGPL-3.0-or-later -->
 				</div>
 			</form>
 		</section>
+		<div v-if="editingMember" class="member-edit-layer">
+			<section ref="editDialog" class="member-create member-edit-dialog" role="dialog" aria-modal="true" aria-labelledby="member-edit-title" tabindex="-1" @keydown.esc.prevent="closeEdit">
+				<div class="create-heading">
+					<div>
+						<h3 id="member-edit-title">{{ canEditMember(editingMember) ? 'Mitglied bearbeiten' : 'Mitglied ansehen' }}</h3>
+						<p>{{ editingMember.display_name }} · Nextcloud-Konto: {{ editingMember.user_uid }} (nicht änderbar)</p>
+					</div>
+					<button type="button" class="create-close" :disabled="saving" @click="closeEdit">Schließen</button>
+				</div>
+				<form class="create-form" @submit.prevent="saveEdit">
+					<p v-if="editError" role="alert" class="edit-error">{{ editError }}</p>
+					<p v-if="editNotice" role="status" class="edit-notice">{{ editNotice }}</p>
+					<fieldset>
+						<legend>Nextcloud-Konto und Abteilung</legend>
+						<div class="create-grid">
+							<label>Anzeigename
+								<input v-model.trim="editDisplayName" maxlength="255" required :disabled="saving || !editingMember.can_edit_display_name">
+							</label>
+							<label>Abteilung
+								<select v-if="editingMember.can_change_department" v-model="editDepartment" :disabled="saving">
+									<option value="" disabled>Abteilung auswählen</option>
+									<option v-for="group in page?.editable_departments || []" :key="group" :value="group">{{ group }}</option>
+								</select>
+								<input v-else :value="editingMember.departments.join(', ') || '–'" disabled>
+							</label>
+						</div>
+					</fieldset>
+					<fieldset v-for="group in editGroups" :key="group.title">
+						<legend>{{ group.title }}</legend>
+						<p v-if="group.title === 'Erklärungen aus dem Aufnahmeantrag'" class="edit-hint">Nur den Stand des unterschriebenen Aufnahmeantrags dokumentieren; keine neue Einwilligung einholen.</p>
+						<div class="create-grid">
+							<label v-for="field in group.fields" :key="field.id" :class="{ 'span-full': field.field_key === 'vereins_strasse' }">
+								{{ field.label }}
+								<select v-if="field.type === 'select'" v-model="editFieldDraft[field.field_key]" :disabled="saving || !field.can_write">
+									<option value="">–</option>
+									<option v-for="option in field.options || []" :key="option" :value="option">{{ field.field_key === 'vereins_land' ? countryLabel(option) : option }}</option>
+								</select>
+								<select v-else-if="field.type === 'boolean'" v-model="editFieldDraft[field.field_key]" :disabled="saving || !field.can_write">
+									<option value="">–</option>
+									<option value="true">Ja</option>
+									<option value="false">Nein</option>
+								</select>
+								<select v-else-if="field.type === 'multiselect'" v-model="editFieldDraft[field.field_key]" multiple :disabled="saving || !field.can_write">
+									<option v-for="option in field.options || []" :key="option" :value="option">{{ option }}</option>
+								</select>
+								<input v-else v-model="editFieldDraft[field.field_key]" :type="inputType(field)" :disabled="saving || !field.can_write">
+								<small v-if="!field.can_write">Nur lesbar</small>
+							</label>
+						</div>
+					</fieldset>
+					<div class="create-submit">
+						<button type="button" :disabled="saving" @click="closeEdit">Abbrechen</button>
+						<button v-if="canEditMember(editingMember)" type="submit" :disabled="saving || !hasEditChanges">{{ saving ? 'Speichere …' : 'Änderungen speichern' }}</button>
+					</div>
+				</form>
+			</section>
+		</div>
 		<div class="toolbar">
 			<label>Suche <input v-model="search" type="search" placeholder="Name, Benutzername oder Profilfeld" @keydown.enter="reload"></label>
 			<label>Abteilung
@@ -125,80 +182,45 @@ SPDX-License-Identifier: AGPL-3.0-or-later -->
 				</select>
 			</label>
 			<button type="button" :disabled="loading || saving" @click="reload">Suchen / Aktualisieren</button>
-			<details v-if="page?.fields.length" class="columns">
-				<summary>Spalten auswählen</summary>
-				<label v-for="field in page.fields" :key="field.id" class="column-choice">
+			<details v-if="page" class="columns">
+				<summary>Zusätzliche Spalten auswählen</summary>
+				<label class="column-choice"><input v-model="showDepartment" type="checkbox"> Abteilung</label>
+				<label v-for="field in additionalFields" :key="field.id" class="column-choice">
 					<input v-model="shownKeys" type="checkbox" :value="field.field_key"> {{ field.label }}
 				</label>
 			</details>
 		</div>
 		<p v-if="loading">Mitglieder werden geladen …</p>
 		<div v-if="page" class="table-scroll">
-			<table>
-				<thead><tr>
-					<th>Mitglied</th><th>Abteilung</th>
-					<th v-for="field in visibleFields" :key="field.id">{{ field.label }}</th>
-				</tr></thead>
+			<table class="member-summary-table">
+				<thead>
+					<tr>
+						<th scope="col">Nachname</th>
+						<th scope="col">Vorname</th>
+						<th scope="col">Straße / Nr.</th>
+						<th scope="col">PLZ</th>
+						<th scope="col">Ort</th>
+						<th v-if="showDepartment" scope="col">Abteilung</th>
+						<th v-for="field in visibleFields" :key="field.id" scope="col">{{ field.label }}</th>
+						<th scope="col">Aktion</th>
+					</tr>
+				</thead>
 				<tbody>
 					<tr v-for="member in page.items" :key="member.user_uid">
-						<th scope="row">
-							<form v-if="accountEdit?.uid === member.user_uid && accountEdit.kind === 'name'" @submit.prevent="saveAccount(member)">
-								<label>Nextcloud-Anzeigename <input v-model="accountDraft" type="text" required :disabled="saving"></label>
-								<div class="actions">
-									<button type="submit" :disabled="saving">Speichern</button>
-									<button type="button" :disabled="saving" @click="accountEdit = null">Abbrechen</button>
-								</div>
-							</form>
-							<button v-else-if="member.can_edit_display_name" type="button" class="cell-button" :disabled="loading || saving" :aria-label="`Anzeigename von ${member.user_uid} bearbeiten`" @click="startAccountEdit(member, 'name')">
-								{{ member.display_name }} ✎
-							</button>
-							<span v-else>{{ member.display_name }}</span>
-							<small>{{ member.user_uid }}</small>
-						</th>
+						<th scope="row">{{ memberValue(member, 'vereins_nachname', member.display_name) }}</th>
+						<td>{{ memberValue(member, 'vereins_vorname') }}</td>
+						<td>{{ streetAndNumber(member) }}</td>
+						<td>{{ memberValue(member, 'vereins_plz') }}</td>
+						<td>{{ memberValue(member, 'vereins_ort') }}</td>
+						<td v-if="showDepartment">{{ member.departments.join(', ') || '–' }}</td>
+						<td v-for="field in visibleFields" :key="field.id">{{ display(member.fields[field.field_key]?.value) }}</td>
 						<td>
-							<form v-if="accountEdit?.uid === member.user_uid && accountEdit.kind === 'department'" @submit.prevent="saveAccount(member)">
-								<label>Zielabteilung
-									<select v-model="accountDraft" required :disabled="saving">
-										<option value="" disabled>Abteilung auswählen</option>
-										<option v-for="group in page.editable_departments" :key="group" :value="group">{{ group }}</option>
-									</select>
-								</label>
-								<small>Bisherige Abteilungen: {{ member.departments.join(', ') || 'keine' }}. Es bleibt nur die Zielabteilung.</small>
-								<div class="actions">
-									<button type="submit" :disabled="saving">Speichern</button>
-									<button type="button" :disabled="saving" @click="accountEdit = null">Abbrechen</button>
-								</div>
-							</form>
-							<button v-else-if="member.can_change_department" type="button" class="cell-button" :disabled="loading || saving" :aria-label="`Abteilung von ${member.user_uid} ändern`" @click="startAccountEdit(member, 'department')">
-								{{ member.departments.join(', ') || '–' }} ✎
+							<button type="button" class="member-edit-button" :disabled="loading || saving" :aria-label="(canEditMember(member) ? 'Mitglied bearbeiten: ' : 'Mitglied anzeigen: ') + member.display_name" @click="openEdit(member)">
+								{{ canEditMember(member) ? 'Bearbeiten' : 'Details' }}
 							</button>
-							<span v-else>{{ member.departments.join(', ') || '–' }}</span>
-						</td>
-						<td v-for="field in visibleFields" :key="field.id">
-							<div v-if="editingKey === cellKey(member, field)">
-								<select v-if="field.type === 'select'" v-model="draft">
-									<option value="">–</option>
-									<option v-for="option in field.options || []" :key="option" :value="option">{{ option }}</option>
-								</select>
-								<select v-else-if="field.type === 'boolean'" v-model="draft">
-									<option :value="null">–</option><option :value="true">Ja</option><option :value="false">Nein</option>
-								</select>
-								<select v-else-if="field.type === 'multiselect'" v-model="draftMulti" multiple>
-									<option v-for="option in field.options || []" :key="option" :value="option">{{ option }}</option>
-								</select>
-								<input v-else v-model="draft" :type="inputType(field)" aria-label="Profilfeld bearbeiten">
-								<div class="actions">
-									<button type="button" :disabled="saving" @click="save(member, field)">Speichern</button>
-									<button type="button" :disabled="saving" @click="editingKey = null">Abbrechen</button>
-								</div>
-							</div>
-							<button v-else-if="field.can_write" type="button" class="cell-button" :disabled="loading || saving" :aria-label="`${field.label} von ${member.display_name} bearbeiten`" @click="startEdit(member, field)">
-								{{ display(member.fields[field.field_key]?.value) }} ✎
-							</button>
-							<span v-else>{{ display(member.fields[field.field_key]?.value) }}</span>
 						</td>
 					</tr>
-					<tr v-if="!page.items.length"><td :colspan="visibleFields.length + 2">Keine Mitglieder gefunden</td></tr>
+					<tr v-if="!page.items.length"><td :colspan="6 + (showDepartment ? 1 : 0) + visibleFields.length">Keine Mitglieder gefunden</td></tr>
 				</tbody>
 			</table>
 		</div>
@@ -212,7 +234,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later -->
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { confirmPassword } from '@nextcloud/password-confirmation'
 import '@nextcloud/password-confirmation/style.css'
 import { apiErrorMessage, changeMemberDepartment, createMember, fetchMembers, saveDisplayName, saveMemberField, type MemberCell, type MemberFieldDefinition, type MemberPage, type MemberRecord, type NewMemberPayload } from '../member-directory-api'
@@ -292,24 +314,104 @@ async function submitCreate() {
 const saving = ref(false)
 const error = ref('')
 const notice = ref('')
-const editingKey = ref<string | null>(null)
-type AccountEditKind = 'name' | 'department'
-const accountEdit = ref<{ uid: string, kind: AccountEditKind } | null>(null)
-const accountDraft = ref('')
-const draft = ref<unknown>('')
-const draftMulti = ref<string[]>([])
-const visibleFields = computed(() => page.value?.fields.filter(f => shownKeys.value.includes(f.field_key)) || [])
-const cellKey = (member: MemberRecord, field: MemberFieldDefinition) => JSON.stringify([member.user_uid, field.field_key])
+const defaultTableKeys = new Set(['vereins_nachname', 'vereins_vorname', 'vereins_strasse', 'vereins_hausnummer', 'vereins_plz', 'vereins_ort'])
+const showDepartment = ref(false)
+const additionalFields = computed(() => page.value?.fields.filter(field => !defaultTableKeys.has(field.field_key)) || [])
+const visibleFields = computed(() => additionalFields.value.filter(field => shownKeys.value.includes(field.field_key)))
 const display = (value: unknown): string => value == null || value === '' ? '–' : Array.isArray(value) ? value.join(', ') : typeof value === 'boolean' ? (value ? 'Ja' : 'Nein') : String(value)
+const memberValue = (member: MemberRecord, key: string, fallback = '–'): string => {
+	const value = member.fields[key]?.value
+	return value == null || value === '' ? fallback : display(value)
+}
+const streetAndNumber = (member: MemberRecord): string => {
+	const street = memberValue(member, 'vereins_strasse', '')
+	const number = memberValue(member, 'vereins_hausnummer', '')
+	return [street, number].filter(Boolean).join(' ') || '–'
+}
 const inputType = (field: MemberFieldDefinition): string => {
+	if (['vereins_telefon', 'vereins_mobiltelefon'].includes(field.field_key)) return 'tel'
 	const inputTypes: Record<string, string> = { number: 'number', date: 'date', email: 'email', url: 'url' }
 	return inputTypes[field.type] || 'text'
+}
+const editingMember = ref<MemberRecord | null>(null)
+const editDialog = ref<HTMLElement | null>(null)
+const editFieldDraft = ref<Record<string, unknown>>({})
+const editFieldBaseline = ref<Record<string, unknown>>({})
+const editDisplayName = ref('')
+const editOriginalDisplayName = ref('')
+const editDepartment = ref('')
+const editOriginalDepartment = ref('')
+const editError = ref('')
+const editNotice = ref('')
+const editGroups = computed(() => {
+	const available = page.value?.fields || []
+	const plans = [
+		{ title: 'Persönliche Daten', keys: ['vereins_vorname', 'vereins_nachname'] },
+		{ title: 'Kontakt', keys: ['vereins_mobiltelefon', 'vereins_telefon'] },
+		{ title: 'Anschrift', keys: ['vereins_strasse', 'vereins_hausnummer', 'vereins_plz', 'vereins_ort', 'vereins_land'] },
+		{ title: 'Vereinszugehörigkeit', keys: ['mitgliedsnummer', 'eintrittsdatum', 'beitragsfrei', 'beitragsart'] },
+		{ title: 'Erklärungen aus dem Aufnahmeantrag', keys: ['datenschutz_hinweise_erhalten', 'einwilligung_web', 'einwilligung_social'] },
+	]
+	const known = new Set(plans.flatMap(group => group.keys))
+	const groups = plans.map(group => ({
+		title: group.title,
+		fields: group.keys.map(key => available.find(field => field.field_key === key)).filter((field): field is MemberFieldDefinition => field !== undefined),
+	})).filter(group => group.fields.length > 0)
+	const extra = available.filter(field => !known.has(field.field_key))
+	if (extra.length) groups.push({ title: 'Weitere Profilfelder', fields: extra })
+	return groups
+})
+const draftValue = (field: MemberFieldDefinition, value: unknown): unknown => {
+	if (field.type === 'boolean') return value === true ? 'true' : value === false ? 'false' : ''
+	if (field.type === 'multiselect') return Array.isArray(value) ? [...value] : []
+	return value == null ? '' : String(value)
+}
+const sameDraftValue = (a: unknown, b: unknown): boolean => JSON.stringify(a) === JSON.stringify(b)
+const changedEditFields = computed(() => (page.value?.fields || []).filter(field => field.can_write && !sameDraftValue(editFieldDraft.value[field.field_key], editFieldBaseline.value[field.field_key])))
+const hasEditChanges = computed(() => {
+	const member = editingMember.value
+	if (!member) return false
+	return changedEditFields.value.length > 0
+		|| (member.can_edit_display_name && editDisplayName.value.trim() !== editOriginalDisplayName.value)
+		|| (member.can_change_department && editDepartment.value !== '' && editDepartment.value !== editOriginalDepartment.value)
+})
+const canEditMember = (member: MemberRecord): boolean => Boolean(
+	member.can_edit_display_name
+	|| member.can_change_department
+	|| page.value?.fields.some(field => field.can_write),
+)
+function openEdit(member: MemberRecord) {
+	if (saving.value || loading.value || !page.value) return
+	createOpen.value = false
+	editingMember.value = member
+	editDisplayName.value = member.display_name
+	editOriginalDisplayName.value = member.display_name
+	editDepartment.value = member.departments.length === 1 ? member.departments[0] : ''
+	editOriginalDepartment.value = editDepartment.value
+	editFieldDraft.value = {}
+	editFieldBaseline.value = {}
+	for (const field of page.value.fields) {
+		const value = draftValue(field, member.fields[field.field_key]?.value)
+		editFieldDraft.value[field.field_key] = value
+		editFieldBaseline.value[field.field_key] = Array.isArray(value) ? [...value] : value
+	}
+	editError.value = ''
+	editNotice.value = ''
+	void nextTick(() => editDialog.value?.focus())
+}
+function closeEdit() {
+	if (saving.value) return
+	editingMember.value = null
+	editFieldDraft.value = {}
+	editFieldBaseline.value = {}
+	editError.value = ''
+	editNotice.value = ''
 }
 async function load() {
 	loading.value = true
 	error.value = ''
 	try {
-		const previousKeys = shownKeys.value
+		const oldKeys = shownKeys.value
 		const hadPage = page.value !== null
 		page.value = await fetchMembers({ department: department.value, search: search.value, offset: offset.value, limit })
 		if (createOpen.value && !memberNumberManuallyEdited.value && page.value.next_member_number) {
@@ -320,9 +422,7 @@ async function load() {
 			offset.value = Math.max(0, Math.ceil(page.value.pagination.total / limit) - 1) * limit
 			page.value = await fetchMembers({ department: department.value, search: search.value, offset: offset.value, limit })
 		}
-		shownKeys.value = hadPage ? previousKeys.filter(k => page.value!.fields.some(f => f.field_key === k)) : page.value.fields.map(f => f.field_key)
-		editingKey.value = null
-		accountEdit.value = null
+		shownKeys.value = hadPage ? oldKeys.filter(key => additionalFields.value.some(field => field.field_key === key)) : []
 	} catch (e) {
 		error.value = apiErrorMessage(e)
 		page.value = null
@@ -330,62 +430,55 @@ async function load() {
 		loading.value = false
 	}
 }
-function reload() { if (saving.value || loading.value) return; offset.value = 0; void load() }
-function changePage(direction: number) { offset.value = Math.max(0, offset.value + direction * limit); void load() }
-function startEdit(member: MemberRecord, field: MemberFieldDefinition) {
-	accountEdit.value = null
-	editingKey.value = cellKey(member, field)
-	const value = member.fields[field.field_key]?.value
-	draft.value = value == null ? '' : value
-	draftMulti.value = Array.isArray(value) ? [...value] : []
-	error.value = ''
-	notice.value = ''
-}
-async function save(member: MemberRecord, field: MemberFieldDefinition) {
+function reload() { if (saving.value || loading.value) return; offset.value = 0; closeEdit(); void load() }
+function changePage(direction: number) { if (saving.value || loading.value) return; offset.value = Math.max(0, offset.value + direction * limit); closeEdit(); void load() }
+async function saveEdit() {
+	const member = editingMember.value
+	if (!member || !page.value || saving.value || loading.value || !hasEditChanges.value) return
 	saving.value = true
-	error.value = ''
-	notice.value = ''
+	editError.value = ''
+	editNotice.value = ''
+	let saved = 0
 	try {
-		const old: MemberCell = member.fields[field.field_key] || { value: null, etag: '', updated_at: null }
-		const raw = field.type === 'multiselect' ? draftMulti.value : draft.value
-		const updated = await saveMemberField(member.user_uid, field.id, raw, old.etag)
-		member.fields[field.field_key] = updated
-		editingKey.value = null
-		notice.value = 'Änderung gespeichert.'
-	} catch (e) {
-		error.value = apiErrorMessage(e) + ' Bei Konflikten bitte aktualisieren.'
-	} finally {
-		saving.value = false
-	}
-}
-function startAccountEdit(member: MemberRecord, kind: AccountEditKind) {
-	editingKey.value = null
-	accountEdit.value = { uid: member.user_uid, kind }
-	accountDraft.value = kind === 'name'
-		? member.display_name
-		: member.departments.length === 1 ? member.departments[0] : ''
-	error.value = ''
-	notice.value = ''
-}
-async function saveAccount(member: MemberRecord) {
-	if (saving.value || loading.value || accountEdit.value?.uid !== member.user_uid) return
-	saving.value = true
-	error.value = ''
-	notice.value = ''
-	try {
-		if (accountEdit.value.kind === 'name') {
-			await saveDisplayName(member, accountDraft.value)
-		} else {
-			await changeMemberDepartment(member, accountDraft.value)
+		// The existing endpoint writes one field at a time, not atomically.
+		// After each success keep the new ETag and baseline so retries only
+		// submit changes which have not yet been saved.
+		for (const field of [...changedEditFields.value]) {
+			const key = field.field_key
+			const old: MemberCell = member.fields[key] || { value: null, etag: '', updated_at: null }
+			const updated = await saveMemberField(member.user_uid, field.id, editFieldDraft.value[key], old.etag)
+			member.fields[key] = updated
+			editFieldBaseline.value[key] = draftValue(field, updated.value)
+			editFieldDraft.value[key] = draftValue(field, updated.value)
+			saved++
 		}
-		accountEdit.value = null
-		notice.value = 'Änderung gespeichert.'
+		if (member.can_edit_display_name && editDisplayName.value.trim() !== editOriginalDisplayName.value) {
+			const name = editDisplayName.value.trim()
+			await saveDisplayName(member, name)
+			member.display_name = name
+			editOriginalDisplayName.value = name
+			saved++
+		}
+		if (member.can_change_department && editDepartment.value !== '' && editDepartment.value !== editOriginalDepartment.value) {
+			await changeMemberDepartment(member, editDepartment.value)
+			member.departments = [editDepartment.value]
+			editOriginalDepartment.value = editDepartment.value
+			saved++
+		}
+		closeEditAfterSave()
+		notice.value = saved === 1 ? 'Änderung gespeichert.' : String(saved) + ' Änderungen gespeichert.'
 		await load()
 	} catch (e) {
-		error.value = apiErrorMessage(e)
+		editError.value = apiErrorMessage(e) + ' Bitte prüfen und gegebenenfalls erneut speichern. Bei Konflikten die Mitgliederliste aktualisieren.'
+		if (saved) editNotice.value = String(saved) + ' Änderungen wurden bereits gespeichert; die übrigen bleiben im Formular.'
 	} finally {
 		saving.value = false
 	}
+}
+function closeEditAfterSave() {
+	editingMember.value = null
+	editError.value = ''
+	editNotice.value = ''
 }
 onMounted(() => void load())
 </script>
