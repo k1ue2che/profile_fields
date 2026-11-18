@@ -52,6 +52,11 @@ class MemberDirectoryServiceTest extends TestCase {
 		$definition->setType('text');
 		$definition->setActive(true);
 		$definition->setOptions(null);
+		$definition->setEditPolicy('admins');
+		$definition->setExposurePolicy('private');
+		$definition->setSortOrder(1070);
+		$definition->setCreatedAt(new \DateTime('2026-11-18T12:00:00+00:00'));
+		$definition->setUpdatedAt(new \DateTime('2026-11-18T12:00:00+00:00'));
 		$definitions = $this->createMock(FieldDefinitionService::class);
 		$definitions->method('findActiveOrdered')->willReturn([$definition]);
 		$access = $this->createMock(MemberDirectoryAccessService::class);
