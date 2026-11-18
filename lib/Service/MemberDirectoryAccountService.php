@@ -69,7 +69,7 @@ class MemberDirectoryAccountService {
 		$canEditEmail = $canManage && $actorUid !== null
 			&& $this->groups->isAdmin($actorUid)
 			&& $user->canChangeEmail()
-			&& $user->getPrimaryEMailAddress() === null;
+			&& ($user->getPrimaryEMailAddress() === null || $user->getPrimaryEMailAddress() === '');
 		$canEditBirthdate = $canManage && $user->canEditProperty(IAccountManager::PROPERTY_BIRTHDATE);
 		$birthdate = '';
 		if ($canManage) {
@@ -145,6 +145,7 @@ class MemberDirectoryAccountService {
 				$template->addFooter();
 				$message = $this->mailer->createMessage();
 				$message->setTo([$email => $user->getDisplayName()]);
+				$message->setFrom([\OCP\Util::getDefaultEmailAddress('no-reply') => $this->defaults->getName()]);
 				$message->useTemplate($template);
 				$this->mailer->send($message);
 				$this->systemConfig->setAppValue('profile_fields', $lastKey, (string)time());
