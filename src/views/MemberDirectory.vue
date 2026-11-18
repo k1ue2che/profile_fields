@@ -203,12 +203,12 @@ SPDX-License-Identifier: AGPL-3.0-or-later -->
 				<thead>
 					<tr>
 						<th v-if="showMemberNumber" scope="col" class="member-number-column" :aria-sort="ariaSort('mitgliedsnummer')"><button type="button" class="member-sort" :disabled="loading || saving" @click="changeSort('mitgliedsnummer')">Nr. {{ sortMark('mitgliedsnummer') }}</button></th>
+						<th v-if="showDepartment" scope="col" :aria-sort="ariaSort('department')"><button type="button" class="member-sort" :disabled="loading || saving" @click="changeSort('department')">Abteilung {{ sortMark('department') }}</button></th>
 						<th scope="col"  :aria-sort="ariaSort('vereins_nachname')"><button v-if="canSort('vereins_nachname')" type="button" class="member-sort" :disabled="loading || saving" @click="changeSort('vereins_nachname')">Nachname {{ sortMark('vereins_nachname') }}</button><span v-else>Nachname</span></th>
 						<th scope="col"  :aria-sort="ariaSort('vereins_vorname')"><button v-if="canSort('vereins_vorname')" type="button" class="member-sort" :disabled="loading || saving" @click="changeSort('vereins_vorname')">Vorname {{ sortMark('vereins_vorname') }}</button><span v-else>Vorname</span></th>
 						<th scope="col"  :aria-sort="ariaSort('vereins_strasse')"><button v-if="canSort('vereins_strasse')" type="button" class="member-sort" :disabled="loading || saving" @click="changeSort('vereins_strasse')">Straße / Nr. {{ sortMark('vereins_strasse') }}</button><span v-else>Straße / Nr.</span></th>
 						<th scope="col"  :aria-sort="ariaSort('vereins_plz')"><button v-if="canSort('vereins_plz')" type="button" class="member-sort" :disabled="loading || saving" @click="changeSort('vereins_plz')">PLZ {{ sortMark('vereins_plz') }}</button><span v-else>PLZ</span></th>
 						<th scope="col"  :aria-sort="ariaSort('vereins_ort')"><button v-if="canSort('vereins_ort')" type="button" class="member-sort" :disabled="loading || saving" @click="changeSort('vereins_ort')">Ort {{ sortMark('vereins_ort') }}</button><span v-else>Ort</span></th>
-						<th v-if="showDepartment" scope="col"  :aria-sort="ariaSort('department')"><button type="button" class="member-sort" :disabled="loading || saving" @click="changeSort('department')">Abteilung {{ sortMark('department') }}</button></th>
 						<th v-for="field in visibleFields" :key="field.id" scope="col" :aria-sort="ariaSort(field.field_key)"><button type="button" class="member-sort" :disabled="loading || saving" @click="changeSort(field.field_key)">{{ field.label }} {{ sortMark(field.field_key) }}</button></th>
 						<th scope="col">Aktion</th>
 					</tr>
@@ -216,12 +216,12 @@ SPDX-License-Identifier: AGPL-3.0-or-later -->
 				<tbody>
 					<tr v-for="member in page.items" :key="member.user_uid">
 						<td v-if="showMemberNumber" class="member-number-column"><span class="member-number-value">{{ memberValue(member, 'mitgliedsnummer') }}</span></td>
+						<td v-if="showDepartment">{{ member.departments.join(', ') || '–' }}</td>
 						<th scope="row">{{ memberValue(member, 'vereins_nachname', member.display_name) }}</th>
 						<td>{{ memberValue(member, 'vereins_vorname') }}</td>
 						<td>{{ streetAndNumber(member) }}</td>
 						<td>{{ memberValue(member, 'vereins_plz') }}</td>
 						<td>{{ memberValue(member, 'vereins_ort') }}</td>
-						<td v-if="showDepartment">{{ member.departments.join(', ') || '–' }}</td>
 						<td v-for="field in visibleFields" :key="field.id">{{ display(member.fields[field.field_key]?.value) }}</td>
 						<td>
 							<button type="button" class="member-edit-button" :disabled="loading || saving" :aria-label="(canEditMember(member) ? 'Mitglied bearbeiten: ' : 'Mitglied anzeigen: ') + member.display_name" @click="openEdit(member)">
@@ -329,7 +329,7 @@ const saving = ref(false)
 const error = ref('')
 const notice = ref('')
 const defaultTableKeys = new Set(['vereins_nachname', 'vereins_vorname', 'vereins_strasse', 'vereins_hausnummer', 'vereins_plz', 'vereins_ort'])
-const showDepartment = ref(false)
+const showDepartment = ref(true)
 const showMemberNumber = computed(() => page.value?.fields.some(field => field.field_key === 'mitgliedsnummer') ?? false)
 const additionalFields = computed(() => page.value?.fields.filter(field => !defaultTableKeys.has(field.field_key) && field.field_key !== 'mitgliedsnummer') || [])
 const visibleFields = computed(() => additionalFields.value.filter(field => shownKeys.value.includes(field.field_key)))
