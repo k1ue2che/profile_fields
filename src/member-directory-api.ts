@@ -75,8 +75,41 @@ export const createMember = async(payload: NewMemberPayload): Promise<NewMemberR
 }
 
 export const fetchMembers = async(params: { department: string, search: string, limit: number, offset: number, sortBy: string, sortDirection: 'asc' | 'desc' }): Promise<MemberPage> => {
-	const response = await axios.get<{ ocs: { data: MemberPage } }>(apiUrl('/members'), { headers, params })
-	return response.data.ocs.data
+	if (params.limit !== 0) {
+		const response = await axios.get<{ ocs: { data: MemberPage } }>(apiUrl('/members'), { headers, params })
+		return response.data.ocs.data
+	}
+
+	// "Alle anzeigen" uses supported 100-entry API pages rather than limit=0,
+	// which older deployed endpoints and parameter validators may reject.
+	// Sorting remains global because the API sorts before slicing each page.
+	const batchSize = 100
+	const maxAll = 5000
+	const request = async(offset: number): Promise<MemberPage> => {
+		const response = await axios.get<{ ocs: { data: MemberPage } }>(apiUrl('/members'), {
+			headers,
+			params: { ...params, limit: batchSize, offset },
+		})
+		return response.data.ocs.data
+	}
+	const first = await request(0)
+	const total = first.pagination.total
+	if (total > maxAll) {
+		throw new Error('Mehr als 5.000 Mitglieder gefunden. Bitte 50 oder 100 Einträge pro Seite auswählen.')
+	}
+	const items = [...first.items]
+	for (let offset = batchSize; offset < total; offset += batchSize) {
+		const batch = await request(offset)
+		if (batch.pagination.total !== total || batch.items.length === 0) {
+			throw new Error('Die Mitgliederliste hat sich während des Ladens geändert. Bitte erneut aktualisieren.')
+		}
+		items.push(...batch.items)
+	}
+	return {
+		...first,
+		items,
+		pagination: { total, limit: 0, offset: 0 },
+	}
 }
 
 export const saveMemberField = async(
