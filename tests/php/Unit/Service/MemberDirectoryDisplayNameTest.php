@@ -44,14 +44,14 @@ class MemberDirectoryDisplayNameTest extends TestCase {
 		$manager->expects(self::never())->method('updateAccount');
 		$user = $this->createMock(IUser::class);
 		$user->method('canEditProperty')->willReturn(false);
-		$this->expectException(\\LogicException::class);
+		$this->expectException(\LogicException::class);
 		MemberDirectoryCreationService::setInitialBirthdate($manager, $user, '2000-01-01');
 	}
 
 	public function testInvalidBirthdateCannotBeWritten(): void {
 		$manager = $this->createMock(IAccountManager::class);
 		$manager->expects(self::never())->method('updateAccount');
-		$this->expectException(\\InvalidArgumentException::class);
+		$this->expectException(\InvalidArgumentException::class);
 		MemberDirectoryCreationService::setInitialBirthdate($manager, $this->createMock(IUser::class), '2001-02-29');
 	}
 
