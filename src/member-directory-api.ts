@@ -19,6 +19,7 @@ export type MemberFieldDefinition = {
 
 export type MemberCell = { value: unknown, etag: string, updated_at: string | null }
 export type MemberRecord = {
+	account: { email: string, birthdate: string, can_edit_email: boolean, can_edit_birthdate: boolean, can_reset_password: boolean }
 	user_uid: string
 	display_name: string
 	departments: string[]
@@ -129,6 +130,20 @@ export const saveMemberField = async(
 export const saveDisplayName = async(member: MemberRecord, displayName: string): Promise<void> => {
 	await axios.put(apiUrl(`/members/${encodeURIComponent(member.user_uid)}/display-name`),
 		{ displayName, expectedName: member.display_name }, { headers: jsonHeaders })
+}
+
+export const saveMemberEmail = async(member: MemberRecord, email: string): Promise<void> => {
+	await axios.put(apiUrl(`/members/${encodeURIComponent(member.user_uid)}/email`),
+		{ email, expectedEmail: member.account.email }, { headers: jsonHeaders })
+}
+
+export const saveMemberBirthdate = async(member: MemberRecord, birthdate: string): Promise<void> => {
+	await axios.put(apiUrl(`/members/${encodeURIComponent(member.user_uid)}/birthdate`),
+		{ birthdate, expectedBirthdate: member.account.birthdate }, { headers: jsonHeaders })
+}
+
+export const requestMemberPasswordReset = async(member: MemberRecord): Promise<void> => {
+	await axios.post(apiUrl(`/members/${encodeURIComponent(member.user_uid)}/password-reset`), {}, { headers: jsonHeaders })
 }
 
 export const changeMemberDepartment = async(member: MemberRecord, department: string): Promise<void> => {
