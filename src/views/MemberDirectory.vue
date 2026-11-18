@@ -195,6 +195,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later -->
 			<table class="member-summary-table">
 				<thead>
 					<tr>
+						<th v-if="showMemberNumber" scope="col" class="member-number-column">Nr.</th>
 						<th scope="col">Nachname</th>
 						<th scope="col">Vorname</th>
 						<th scope="col">Straße / Nr.</th>
@@ -207,6 +208,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later -->
 				</thead>
 				<tbody>
 					<tr v-for="member in page.items" :key="member.user_uid">
+						<td v-if="showMemberNumber" class="member-number-column"><span class="member-number-value">{{ memberValue(member, 'mitgliedsnummer') }}</span></td>
 						<th scope="row">{{ memberValue(member, 'vereins_nachname', member.display_name) }}</th>
 						<td>{{ memberValue(member, 'vereins_vorname') }}</td>
 						<td>{{ streetAndNumber(member) }}</td>
@@ -220,7 +222,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later -->
 							</button>
 						</td>
 					</tr>
-					<tr v-if="!page.items.length"><td :colspan="6 + (showDepartment ? 1 : 0) + visibleFields.length">Keine Mitglieder gefunden</td></tr>
+					<tr v-if="!page.items.length"><td :colspan="6 + (showMemberNumber ? 1 : 0) + (showDepartment ? 1 : 0) + visibleFields.length">Keine Mitglieder gefunden</td></tr>
 				</tbody>
 			</table>
 		</div>
@@ -316,7 +318,8 @@ const error = ref('')
 const notice = ref('')
 const defaultTableKeys = new Set(['vereins_nachname', 'vereins_vorname', 'vereins_strasse', 'vereins_hausnummer', 'vereins_plz', 'vereins_ort'])
 const showDepartment = ref(false)
-const additionalFields = computed(() => page.value?.fields.filter(field => !defaultTableKeys.has(field.field_key)) || [])
+const showMemberNumber = computed(() => page.value?.fields.some(field => field.field_key === 'mitgliedsnummer') ?? false)
+const additionalFields = computed(() => page.value?.fields.filter(field => !defaultTableKeys.has(field.field_key) && field.field_key !== 'mitgliedsnummer') || [])
 const visibleFields = computed(() => additionalFields.value.filter(field => shownKeys.value.includes(field.field_key)))
 const display = (value: unknown): string => value == null || value === '' ? '–' : Array.isArray(value) ? value.join(', ') : typeof value === 'boolean' ? (value ? 'Ja' : 'Nein') : String(value)
 const memberValue = (member: MemberRecord, key: string, fallback = '–'): string => {
