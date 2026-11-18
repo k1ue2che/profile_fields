@@ -57,13 +57,15 @@ class MemberDirectoryApiController extends OCSController {
 		string $search = '',
 		int $limit = 50,
 		int $offset = 0,
+		string $sortBy = 'display_name',
+		string $sortDirection = 'asc',
 	): DataResponse {
 		if (!$this->access->canRead($this->userId)) {
 			return new DataResponse(['message' => 'Member directory access denied.'], 403);
 		}
 
 		try {
-			$result = $this->directory->listMembers($department, $search, $limit, $offset, $this->userId);
+			$result = $this->directory->listMembers($department, $search, $limit, $offset, $this->userId, $sortBy, $sortDirection);
 			$result['can_write'] = $this->access->canWrite($this->userId);
 			$result['can_create'] = $this->access->canCreate($this->userId);
 			$result['creatable_departments'] = $this->creator->availableDepartments($this->userId);
