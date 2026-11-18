@@ -46,6 +46,9 @@ class MemberDirectorySetupService {
 			['field_key' => 'eintrittsdatum', 'label' => 'Eintrittsdatum', 'type' => 'date', 'sort_order' => 1080] + $admin,
 			['field_key' => 'beitragsfrei', 'label' => 'Beitragsfrei', 'type' => 'boolean', 'sort_order' => 1090] + $admin,
 			['field_key' => 'beitragsart', 'label' => 'Beitragsart', 'type' => 'select', 'options' => ['Vollmitglied', 'Ermäßigt', 'Jugend', 'Ehrenmitglied'], 'sort_order' => 1100] + $admin,
+			['field_key' => 'vereins_telefon', 'label' => 'Telefonnummer', 'type' => 'text', 'sort_order' => 1110] + $common,
+			['field_key' => 'datenschutz_hinweise_erhalten', 'label' => 'Datenschutzhinweise erhalten', 'type' => 'select', 'options' => ['Ja', 'Nein'], 'sort_order' => 1120] + $admin,
+			['field_key' => 'social_media_kontakt_erlaubt', 'label' => 'Social-Media-Kontakt erlaubt', 'type' => 'select', 'options' => ['Ja', 'Nein'], 'sort_order' => 1130] + $admin,
 		];
 	}
 
