@@ -153,6 +153,33 @@ class MemberDirectoryAccountServiceTest extends TestCase {
 		$this->service->updateDisplayName('actor', 'member', 'New name', 'Stale name');
 	}
 
+	public function testNativeBirthdateValidationRejectsImpossibleDates(): void {
+		self::assertSame('2000-02-29', MemberDirectoryAccountService::validateBirthdate('2000-02-29'));
+		foreach (['2001-02-29', 'not-a-date', '2100-01-01', '2001-13-01'] as $value) {
+			try {
+				MemberDirectoryAccountService::validateBirthdate($value);
+				self::fail('Invalid birthdate accepted: ' . $value);
+			} catch (\InvalidArgumentException) {
+				// Expected: no data may be written for an impossible date.
+			}
+		}
+	}
+
+	public function testDirectoryReaderCannotEditNativeEmail(): void {
+		$this->groupAdmin = false;
+		$this->allowWrite = false;
+		$this->member->expects(self::never())->method('setSystemEMailAddress');
+		$this->expectException(LogicException::class);
+		$this->service->updateEmail('actor', 'member', 'new@example.org', 'old@example.org');
+	}
+
+	public function testDirectoryReaderCannotEditNativeBirthdate(): void {
+		$this->groupAdmin = false;
+		$this->allowWrite = false;
+		$this->expectException(LogicException::class);
+		$this->service->updateBirthdate('actor', 'member', '2000-01-01', '');
+	}
+
 	private function department(string $gid): IGroup {
 		$group = $this->createMock(IGroup::class);
 		$group->method('getGID')->willReturn($gid);
