@@ -23,10 +23,11 @@ SPDX-License-Identifier: AGPL-3.0-or-later -->
 						<label>Vorname *<input v-model.trim="createDraft.firstName" required maxlength="255" autocomplete="off"></label>
 						<label>Nachname *<input v-model.trim="createDraft.lastName" required maxlength="255" autocomplete="off"></label>
 						<label>Kontoname * <small>Wird automatisch vorgeschlagen. Leerzeichen sind erlaubt; vor der Anlage änderbar.</small>
-							<input v-model.trim="createDraft.userUid" required minlength="1" maxlength="64" title="1–64 Zeichen. Leerzeichen, Buchstaben, Zahlen, Umlaute sowie . _ @ - und Apostroph sind erlaubt." autocomplete="off">
+							<input v-model.trim="createDraft.userUid" required minlength="1" maxlength="64" title="1–64 Zeichen. Leerzeichen, Buchstaben, Zahlen, Umlaute sowie . _ @ - und Apostroph sind erlaubt." autocomplete="off" @input="createUidManuallyEdited = true">
 						</label>
 						<label>Anzeigename *<input v-model.trim="createDraft.displayName" required maxlength="255" autocomplete="off"></label>
 						<label class="span-full">E-Mail-Adresse für Einladung *<input v-model.trim="createDraft.email" type="email" required maxlength="254" autocomplete="off"></label>
+						<label v-if="createField('vereins_telefon')" class="span-full">Telefonnummer (optional)<input v-model.trim="createDraft.fields.vereins_telefon" type="tel" maxlength="64" autocomplete="tel"></label>
 					</div>
 				</fieldset>
 				<fieldset>
@@ -64,6 +65,23 @@ SPDX-License-Identifier: AGPL-3.0-or-later -->
 								<option value="">–</option><option value="true">Ja</option><option value="false">Nein</option>
 							</select>
 							<input v-else v-model="createDraft.fields[field.field_key]" :type="inputType(field)">
+						</label>
+					</div>
+				</fieldset>
+				<fieldset v-if="createField('datenschutz_hinweise_erhalten') || createField('social_media_kontakt_erlaubt')">
+					<legend>Datenschutz und Kontakt</legend>
+					<div class="create-grid">
+						<label v-if="createField('datenschutz_hinweise_erhalten')">Datenschutzhinweise erhalten
+							<small>Dokumentiert die Übergabe der Informationen, keine pauschale Einwilligung.</small>
+							<select v-model="createDraft.fields.datenschutz_hinweise_erhalten">
+								<option value="">Nicht dokumentiert</option><option value="Ja">Ja</option><option value="Nein">Nein</option>
+							</select>
+						</label>
+						<label v-if="createField('social_media_kontakt_erlaubt')">Kontakt über Social Media gewünscht
+							<small>Nur „Ja“ wählen, wenn der konkrete Kontaktweg mit dem Mitglied vereinbart ist.</small>
+							<select v-model="createDraft.fields.social_media_kontakt_erlaubt">
+								<option value="">Nicht angegeben</option><option value="Ja">Ja</option><option value="Nein">Nein</option>
+							</select>
 						</label>
 					</div>
 				</fieldset>
@@ -211,18 +229,15 @@ const countryNames: Record<string, string> = {
 	CZ: 'Tschechien', FR: 'Frankreich', ES: 'Spanien', IT: 'Italien', SI: 'Slowenien',
 }
 const countryLabel = (code: string): string => countryNames[code] ? `${countryNames[code]} (${code})` : code
-const otherCreateFields = computed(() => creatableFields.value.filter(f => !['mitgliedsnummer', 'eintrittsdatum', 'beitragsfrei', 'beitragsart', 'vereins_strasse', 'vereins_hausnummer', 'vereins_plz', 'vereins_ort', 'vereins_land'].includes(f.field_key)))
+const otherCreateFields = computed(() => creatableFields.value.filter(f => !['mitgliedsnummer', 'eintrittsdatum', 'beitragsfrei', 'beitragsart', 'vereins_strasse', 'vereins_hausnummer', 'vereins_plz', 'vereins_ort', 'vereins_land', 'vereins_telefon', 'datenschutz_hinweise_erhalten', 'social_media_kontakt_erlaubt'].includes(f.field_key)))
 const memberNumberManuallyEdited = ref(false)
 const suggestedUid = (first: string, last: string): string => {
-	const strip = (text: string) => text.normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/ß/g, 'ss').replace(/[^A-Za-z0-9]/g, '')
-	return (strip(first).slice(0, 3) + strip(last).slice(0, 30)).slice(0, 64)
+	const clean = (text: string) => text.trim().replace(/\s+/g, ' ')
+	return [clean(first), clean(last)].filter(Boolean).join(' ').slice(0, 64)
 }
 watch(() => [createDraft.value.firstName, createDraft.value.lastName], ([first, last]) => {
 	if (!createUidManuallyEdited.value) createDraft.value.userUid = suggestedUid(first, last)
 	if (!createDisplayNameManuallyEdited.value) createDraft.value.displayName = [first, last].filter(Boolean).join(' ')
-})
-watch(() => createDraft.value.userUid, value => {
-	if (value !== suggestedUid(createDraft.value.firstName, createDraft.value.lastName)) createUidManuallyEdited.value = true
 })
 watch(() => createDraft.value.displayName, value => {
 	if (value !== [createDraft.value.firstName, createDraft.value.lastName].filter(Boolean).join(' ')) createDisplayNameManuallyEdited.value = true
