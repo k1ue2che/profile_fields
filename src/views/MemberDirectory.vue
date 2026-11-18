@@ -143,6 +143,23 @@ SPDX-License-Identifier: AGPL-3.0-or-later -->
 							</label>
 						</div>
 					</fieldset>
+					<fieldset>
+						<legend>Kontaktdaten und Kontozugang</legend>
+						<div class="create-grid">
+							<label>E-Mail-Adresse
+								<input v-model.trim="editEmail" type="email" maxlength="254" :disabled="saving || !editingMember.account.can_edit_email">
+								<small v-if="!editingMember.account.can_edit_email">Nur für berechtigte Administratoren änderbar</small>
+							</label>
+							<label>Geburtsdatum
+								<input v-if="editingMember.account.can_edit_birthdate || editingMember.account.birthdate" v-model="editBirthdate" type="date" :disabled="saving || !editingMember.account.can_edit_birthdate">
+								<small v-else>Für diese Berechtigung nicht freigegeben</small>
+							</label>
+						</div>
+						<div v-if="editingMember.account.can_reset_password" class="member-password-reset">
+							<button type="button" :disabled="saving || resetBusy" @click="sendPasswordReset">{{ resetBusy ? 'Sende Reset-Mail …' : 'Passwort-Reset-Mail senden' }}</button>
+							<small>Der Link wird ausschließlich an die hinterlegte E-Mail-Adresse versendet. Hier wird kein Passwort festgelegt.</small>
+						</div>
+					</fieldset>
 					<fieldset v-for="group in editGroups" :key="group.title">
 						<legend>{{ group.title }}</legend>
 						<p v-if="group.title === 'Erklärungen aus dem Aufnahmeantrag'" class="edit-hint">Nur den Stand des unterschriebenen Aufnahmeantrags dokumentieren; keine neue Einwilligung einholen.</p>
@@ -192,6 +209,8 @@ SPDX-License-Identifier: AGPL-3.0-or-later -->
 			<details v-if="page" class="columns">
 				<summary>Zusätzliche Spalten auswählen</summary>
 				<label class="column-choice"><input v-model="showDepartment" type="checkbox"> Abteilung</label>
+				<label class="column-choice"><input v-model="showEmail" type="checkbox"> E-Mail-Adresse</label>
+				<label v-if="page.items.some(member => member.account.birthdate !== '')" class="column-choice"><input v-model="showBirthdate" type="checkbox"> Geburtsdatum</label>
 				<label v-for="field in additionalFields" :key="field.id" class="column-choice">
 					<input v-model="shownKeys" type="checkbox" :value="field.field_key"> {{ field.label }}
 				</label>
@@ -209,6 +228,8 @@ SPDX-License-Identifier: AGPL-3.0-or-later -->
 						<th scope="col"  :aria-sort="ariaSort('vereins_strasse')"><button v-if="canSort('vereins_strasse')" type="button" class="member-sort" :disabled="loading || saving" @click="changeSort('vereins_strasse')">Straße / Nr. {{ sortMark('vereins_strasse') }}</button><span v-else>Straße / Nr.</span></th>
 						<th scope="col"  :aria-sort="ariaSort('vereins_plz')"><button v-if="canSort('vereins_plz')" type="button" class="member-sort" :disabled="loading || saving" @click="changeSort('vereins_plz')">PLZ {{ sortMark('vereins_plz') }}</button><span v-else>PLZ</span></th>
 						<th scope="col"  :aria-sort="ariaSort('vereins_ort')"><button v-if="canSort('vereins_ort')" type="button" class="member-sort" :disabled="loading || saving" @click="changeSort('vereins_ort')">Ort {{ sortMark('vereins_ort') }}</button><span v-else>Ort</span></th>
+						<th v-if="showEmail" scope="col">E-Mail-Adresse</th>
+						<th v-if="showBirthdate && page.items.some(member => member.account.birthdate !== '')" scope="col">Geburtsdatum</th>
 						<th v-for="field in visibleFields" :key="field.id" scope="col" :aria-sort="ariaSort(field.field_key)"><button type="button" class="member-sort" :disabled="loading || saving" @click="changeSort(field.field_key)">{{ field.label }} {{ sortMark(field.field_key) }}</button></th>
 						<th scope="col">Aktion</th>
 					</tr>
@@ -222,6 +243,8 @@ SPDX-License-Identifier: AGPL-3.0-or-later -->
 						<td>{{ streetAndNumber(member) }}</td>
 						<td>{{ memberValue(member, 'vereins_plz') }}</td>
 						<td>{{ memberValue(member, 'vereins_ort') }}</td>
+						<td v-if="showEmail">{{ display(member.account.email) }}</td>
+						<td v-if="showBirthdate && page.items.some(item => item.account.birthdate !== '')">{{ display(member.account.birthdate) }}</td>
 						<td v-for="field in visibleFields" :key="field.id">{{ display(member.fields[field.field_key]?.value) }}</td>
 						<td>
 							<button type="button" class="member-edit-button" :disabled="loading || saving" :aria-label="(canEditMember(member) ? 'Mitglied bearbeiten: ' : 'Mitglied anzeigen: ') + member.display_name" @click="openEdit(member)">
@@ -229,7 +252,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later -->
 							</button>
 						</td>
 					</tr>
-					<tr v-if="!page.items.length"><td :colspan="6 + (showMemberNumber ? 1 : 0) + (showDepartment ? 1 : 0) + visibleFields.length">Keine Mitglieder gefunden</td></tr>
+					<tr v-if="!page.items.length"><td :colspan="6 + (showMemberNumber ? 1 : 0) + (showDepartment ? 1 : 0) + (showEmail ? 1 : 0) + (showBirthdate && page.items.some(member => member.account.birthdate !== '') ? 1 : 0) + visibleFields.length">Keine Mitglieder gefunden</td></tr>
 				</tbody>
 			</table>
 		</div>
@@ -249,7 +272,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later -->
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { confirmPassword } from '@nextcloud/password-confirmation'
 import '@nextcloud/password-confirmation/style.css'
-import { apiErrorMessage, changeMemberDepartment, createMember, fetchMembers, saveDisplayName, saveMemberField, type MemberCell, type MemberFieldDefinition, type MemberPage, type MemberRecord, type NewMemberPayload } from '../member-directory-api'
+import { apiErrorMessage, changeMemberDepartment, createMember, fetchMembers, requestMemberPasswordReset, saveDisplayName, saveMemberBirthdate, saveMemberEmail, saveMemberField, type MemberCell, type MemberFieldDefinition, type MemberPage, type MemberRecord, type NewMemberPayload } from '../member-directory-api'
 
 const page = ref<MemberPage | null>(null)
 const department = ref('')
@@ -330,6 +353,8 @@ const error = ref('')
 const notice = ref('')
 const defaultTableKeys = new Set(['vereins_nachname', 'vereins_vorname', 'vereins_strasse', 'vereins_hausnummer', 'vereins_plz', 'vereins_ort'])
 const showDepartment = ref(true)
+const showEmail = ref(false)
+const showBirthdate = ref(false)
 const showMemberNumber = computed(() => page.value?.fields.some(field => field.field_key === 'mitgliedsnummer') ?? false)
 const additionalFields = computed(() => page.value?.fields.filter(field => !defaultTableKeys.has(field.field_key) && field.field_key !== 'mitgliedsnummer') || [])
 const visibleFields = computed(() => additionalFields.value.filter(field => shownKeys.value.includes(field.field_key)))
@@ -377,6 +402,11 @@ const editDisplayName = ref('')
 const editOriginalDisplayName = ref('')
 const editDepartment = ref('')
 const editOriginalDepartment = ref('')
+const editEmail = ref('')
+const editOriginalEmail = ref('')
+const editBirthdate = ref('')
+const editOriginalBirthdate = ref('')
+const resetBusy = ref(false)
 const editError = ref('')
 const editNotice = ref('')
 const editGroups = computed(() => {
@@ -410,10 +440,14 @@ const hasEditChanges = computed(() => {
 	return changedEditFields.value.length > 0
 		|| (member.can_edit_display_name && editDisplayName.value.trim() !== editOriginalDisplayName.value)
 		|| (member.can_change_department && editDepartment.value !== '' && editDepartment.value !== editOriginalDepartment.value)
+		|| (member.account.can_edit_email && editEmail.value.trim() !== editOriginalEmail.value)
+		|| (member.account.can_edit_birthdate && editBirthdate.value !== editOriginalBirthdate.value)
 })
 const canEditMember = (member: MemberRecord): boolean => Boolean(
 	member.can_edit_display_name
 	|| member.can_change_department
+	|| member.account.can_edit_email
+	|| member.account.can_edit_birthdate
 	|| page.value?.fields.some(field => field.can_write),
 )
 function openEdit(member: MemberRecord) {
@@ -424,6 +458,10 @@ function openEdit(member: MemberRecord) {
 	editOriginalDisplayName.value = member.display_name
 	editDepartment.value = member.departments.length === 1 ? member.departments[0] : ''
 	editOriginalDepartment.value = editDepartment.value
+	editEmail.value = member.account.email
+	editOriginalEmail.value = member.account.email
+	editBirthdate.value = member.account.birthdate
+	editOriginalBirthdate.value = member.account.birthdate
 	editFieldDraft.value = {}
 	editFieldBaseline.value = {}
 	for (const field of page.value.fields) {
@@ -442,6 +480,20 @@ function closeEdit() {
 	editFieldBaseline.value = {}
 	editError.value = ''
 	editNotice.value = ''
+}
+async function sendPasswordReset() {
+	const member = editingMember.value
+	if (!member || !member.account.can_reset_password || resetBusy.value || saving.value) return
+	if (!window.confirm('Reset-Link an die bereits hinterlegte E-Mail-Adresse dieses Mitglieds senden?')) return
+	resetBusy.value = true
+	editError.value = ''
+	editNotice.value = ''
+	try {
+		await confirmPassword()
+		await requestMemberPasswordReset(member)
+		editNotice.value = 'Reset-Mail wurde an die bestehende Konto-E-Mail-Adresse versendet.'
+	} catch (e) { editError.value = apiErrorMessage(e) }
+	finally { resetBusy.value = false }
 }
 async function load() {
 	loading.value = true
@@ -493,6 +545,19 @@ async function saveEdit() {
 			await saveDisplayName(member, name)
 			member.display_name = name
 			editOriginalDisplayName.value = name
+			saved++
+		}
+		if (member.account.can_edit_email && editEmail.value.trim() !== editOriginalEmail.value) {
+			await confirmPassword()
+			await saveMemberEmail(member, editEmail.value.trim())
+			member.account.email = editEmail.value.trim().toLowerCase()
+			editOriginalEmail.value = member.account.email
+			saved++
+		}
+		if (member.account.can_edit_birthdate && editBirthdate.value !== editOriginalBirthdate.value) {
+			await saveMemberBirthdate(member, editBirthdate.value)
+			member.account.birthdate = editBirthdate.value
+			editOriginalBirthdate.value = editBirthdate.value
 			saved++
 		}
 		if (member.can_change_department && editDepartment.value !== '' && editDepartment.value !== editOriginalDepartment.value) {
