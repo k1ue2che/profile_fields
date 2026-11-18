@@ -72,6 +72,7 @@ class MemberDirectoryApiController extends OCSController {
 			$result['next_member_number'] = $result['can_create'] ? $this->memberNumbers->suggest($this->userId) : null;
 			$result['editable_departments'] = $this->accounts->editableDepartments($this->userId);
 			foreach ($result['items'] as &$member) {
+				$member['account'] = $this->accounts->accountDetails($this->userId, $member['user_uid']);
 				$member['can_edit_display_name'] = $this->accounts->canEditDisplayName($this->userId, $member['user_uid']);
 				$member['can_change_department'] = $result['editable_departments'] !== []
 					&& array_diff($member['departments'], $result['editable_departments']) === []
@@ -171,6 +172,45 @@ class MemberDirectoryApiController extends OCSController {
 		return $this->updateAccount(fn (string $actorUid) => $this->accounts->updateDisplayName(
 			$actorUid, $userUid, $displayName, $expectedName,
 		));
+	}
+
+	#[NoAdminRequired]
+	#[PasswordConfirmationRequired]
+	#[UserRateLimit(limit: 6, period: 60)]
+	#[ApiRoute(verb: 'PUT', url: '/api/v1/member-directory/members/{userUid}/email')]
+	public function updateEmail(string $userUid, string $email, string $expectedEmail): DataResponse {
+		return $this->updateAccount(fn (string $actorUid) => $this->accounts->updateEmail(
+			$actorUid, $userUid, $email, $expectedEmail,
+		));
+	}
+
+	#[NoAdminRequired]
+	#[ApiRoute(verb: 'PUT', url: '/api/v1/member-directory/members/{userUid}/birthdate')]
+	public function updateBirthdate(string $userUid, string $birthdate, string $expectedBirthdate): DataResponse {
+		return $this->updateAccount(fn (string $actorUid) => $this->accounts->updateBirthdate(
+			$actorUid, $userUid, $birthdate, $expectedBirthdate,
+		));
+	}
+
+	#[NoAdminRequired]
+	#[PasswordConfirmationRequired]
+	#[UserRateLimit(limit: 3, period: 60)]
+	#[ApiRoute(verb: 'POST', url: '/api/v1/member-directory/members/{userUid}/password-reset')]
+	public function requestPasswordReset(string $userUid): DataResponse {
+		if ($this->userId === null || !$this->access->canRead($this->userId)) {
+			return new DataResponse(['message' => 'Keine Berechtigung zur Passwortzurücksetzung.'], 403);
+		}
+		try {
+			$this->accounts->requestPasswordReset($this->userId, $userUid);
+			return new DataResponse(['message' => 'Reset-Link an die hinterlegte E-Mail-Adresse gesendet.'], 200);
+		} catch (LogicException $exception) {
+			return new DataResponse(['message' => $exception->getMessage()], 403);
+		} catch (Throwable $exception) {
+			$this->logger->error('Member password reset request failed', [
+				'actor_uid' => $this->userId, 'target_uid' => $userUid, 'exception' => $exception,
+			]);
+			return new DataResponse(['message' => 'Reset-Mail konnte nicht versendet werden. Bitte SMTP-Konfiguration prüfen.'], 500);
+		}
 	}
 
 	/** @param list<string> $expectedDepartments */
