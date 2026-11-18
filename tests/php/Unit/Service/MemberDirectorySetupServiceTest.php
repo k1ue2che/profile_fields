@@ -41,6 +41,27 @@ class MemberDirectorySetupServiceTest extends TestCase {
 		self::assertCount(16, MemberDirectorySetupService::requiredKeys());
 	}
 
+	public function testDefaultMemberFieldsHaveUniqueKeysAndKeepConsentsSeparate(): void {
+		$definitions = MemberDirectorySetupService::defaults();
+		$keys = array_column($definitions, 'field_key');
+		self::assertCount(16, $keys);
+		self::assertSame($keys, array_values(array_unique($keys)));
+		foreach (['vereins_mobiltelefon', 'vereins_telefon', 'datenschutz_hinweise_erhalten', 'einwilligung_web', 'einwilligung_social'] as $key) {
+			self::assertContains($key, $keys);
+		}
+		foreach (['social_media_kontakt_erlaubt', 'social_media_profil'] as $legacyKey) {
+			self::assertNotContains($legacyKey, $keys);
+		}
+		foreach ($definitions as $definition) {
+			if (in_array($definition['field_key'], ['datenschutz_hinweise_erhalten', 'einwilligung_web', 'einwilligung_social'], true)) {
+				self::assertSame('admins', $definition['edit_policy']);
+				self::assertSame('private', $definition['exposure_policy']);
+				self::assertSame('select', $definition['type']);
+				self::assertSame(['Ja', 'Nein'], $definition['options']);
+			}
+		}
+	}
+
 	public function testMatchingExistingDefinitionsAreNeverModified(): void {
 		$existing = array_map($this->field(...), MemberDirectorySetupService::defaults());
 		$definitions = $this->createMock(FieldDefinitionService::class);
