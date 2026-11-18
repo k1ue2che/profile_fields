@@ -22,6 +22,81 @@ use OCP\Lock\ILockingProvider;
 use PHPUnit\Framework\TestCase;
 
 class MemberDirectoryServiceTest extends TestCase {
+	public function testRejectsUnauthorizedSortFieldBeforeReturningMemberData(): void {
+		$config = $this->createMock(MemberDirectoryConfig::class);
+		$config->method('enabled')->willReturn(true);
+		$config->method('baseGroup')->willReturn('LHR');
+		$group = $this->createMock(\OCP\IGroup::class);
+		$group->expects(self::never())->method('getUsers');
+		$groups = $this->createMock(IGroupManager::class);
+		$groups->method('get')->with('LHR')->willReturn($group);
+		$definitions = $this->createMock(FieldDefinitionService::class);
+		$definitions->method('findActiveOrdered')->willReturn([]);
+		$service = new MemberDirectoryService($config,
+			$this->createMock(MemberDirectoryAccessService::class), $groups,
+			$definitions, $this->createMock(FieldValueService::class),
+			$this->createMock(ILockingProvider::class));
+		$this->expectException(\InvalidArgumentException::class);
+		$service->listMembers(limit: 50, actorUid: 'reader', sortBy: 'mitgliedsnummer');
+	}
+
+	public function testSortsBeforePaginationAndSupportsAllMatchingMembers(): void {
+		$config = $this->createMock(MemberDirectoryConfig::class);
+		$config->method('enabled')->willReturn(true);
+		$config->method('baseGroup')->willReturn('LHR');
+		$config->method('departments')->willReturn([]);
+		$definition = new FieldDefinition();
+		$definition->setId(7);
+		$definition->setFieldKey('mitgliedsnummer');
+		$definition->setLabel('Mitgliedsnummer');
+		$definition->setType('text');
+		$definition->setActive(true);
+		$definition->setOptions(null);
+		$definitions = $this->createMock(FieldDefinitionService::class);
+		$definitions->method('findActiveOrdered')->willReturn([$definition]);
+		$access = $this->createMock(MemberDirectoryAccessService::class);
+		$access->method('isMember')->willReturn(true);
+		$access->method('matchesDepartment')->willReturn(true);
+		$access->method('canReadField')->willReturn(true);
+		$memberNumbers = ['a' => '10', 'b' => '2', 'c' => '5'];
+		$members = [];
+		foreach (['a', 'b', 'c'] as $uid) {
+			$user = $this->createMock(\OCP\IUser::class);
+			$user->method('getUID')->willReturn($uid);
+			$user->method('getDisplayName')->willReturn('Member ' . $uid);
+			$members[] = $user;
+		}
+		$group = $this->createMock(\OCP\IGroup::class);
+		$group->method('getUsers')->willReturn($members);
+		$groups = $this->createMock(IGroupManager::class);
+		$groups->method('get')->with('LHR')->willReturn($group);
+		$values = $this->createMock(FieldValueService::class);
+		$values->method('findByUserUid')->willReturnCallback(static function (string $uid) use ($memberNumbers): array {
+			$value = new FieldValue();
+			$value->setFieldDefinitionId(7);
+			$value->setValueJson(json_encode(['value' => $memberNumbers[$uid]], JSON_THROW_ON_ERROR));
+			$value->setCurrentVisibility('private');
+			$value->setUpdatedByUid('editor');
+			$value->setUpdatedAt(new \DateTime('2026-11-18T12:00:00+00:00'));
+			return [$value];
+		});
+		$values->method('serializeForResponse')->willReturnCallback(static fn (FieldValue $value): array => [
+			'value' => json_decode($value->getValueJson(), true),
+			'updated_at' => '2026-11-18T12:00:00+00:00',
+		]);
+		$service = new MemberDirectoryService($config, $access, $groups, $definitions,
+			$values, $this->createMock(ILockingProvider::class));
+
+		$first = $service->listMembers(limit: 1, actorUid: 'reader', sortBy: 'mitgliedsnummer', sortDirection: 'asc');
+		self::assertSame(3, $first['pagination']['total']);
+		self::assertSame(['b'], array_column($first['items'], 'user_uid'));
+		$second = $service->listMembers(limit: 1, offset: 1, actorUid: 'reader', sortBy: 'mitgliedsnummer', sortDirection: 'asc');
+		self::assertSame(['c'], array_column($second['items'], 'user_uid'));
+		$all = $service->listMembers(limit: 0, actorUid: 'reader', sortBy: 'mitgliedsnummer', sortDirection: 'desc');
+		self::assertSame(0, $all['pagination']['limit']);
+		self::assertSame(['a', 'c', 'b'], array_column($all['items'], 'user_uid'));
+	}
+
 	private function makeDefinition(): FieldDefinition {
 		$definition = new FieldDefinition();
 		$definition->setId(7);
