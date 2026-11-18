@@ -49,6 +49,7 @@ class MemberDirectorySetupService {
 			['field_key' => 'vereins_telefon', 'label' => 'Telefonnummer', 'type' => 'text', 'sort_order' => 1110] + $common,
 			['field_key' => 'datenschutz_hinweise_erhalten', 'label' => 'Datenschutzhinweise erhalten', 'type' => 'select', 'options' => ['Ja', 'Nein'], 'sort_order' => 1120] + $admin,
 			['field_key' => 'social_media_kontakt_erlaubt', 'label' => 'Social-Media-Kontakt erlaubt', 'type' => 'select', 'options' => ['Ja', 'Nein'], 'sort_order' => 1130] + $admin,
+			['field_key' => 'social_media_profil', 'label' => 'Social-Media-Profil / Kontakt', 'type' => 'text', 'sort_order' => 1140] + $common,
 		];
 	}
 
