@@ -18,6 +18,11 @@ use OCP\IConfig;
 use OCP\IGroupManager;
 use OCP\IUser;
 use OCP\IUserManager;
+use OCP\IURLGenerator;
+use OCP\Defaults;
+use OCP\IL10N;
+use OCP\Mail\IMailer;
+use OCP\Security\VerificationToken\IVerificationToken;
 use OCP\Lock\ILockingProvider;
 use OutOfBoundsException;
 use Psr\Log\LoggerInterface;
@@ -35,6 +40,11 @@ class MemberDirectoryAccountService {
 		private LoggerInterface $logger,
 		private IAccountManager $accountManager,
 		private IConfig $systemConfig,
+		private IVerificationToken $verificationToken,
+		private IURLGenerator $urlGenerator,
+		private IMailer $mailer,
+		private Defaults $defaults,
+		private IL10N $l10n,
 	) {
 	}
 
@@ -81,6 +91,73 @@ class MemberDirectoryAccountService {
 			'can_edit_birthdate' => $canEditBirthdate,
 			'can_reset_password' => $canReset,
 		];
+	}
+
+	/**
+	 * Mail an existing, enabled, non-privileged local member their own
+	 * Nextcloud password-reset link, never a password or reset token to
+	 * the requesting reader. Target address is read freshly on server.
+	 *
+	 * The per-member throttle applies across all callers. It is not affected
+	 * by changing the displayed email in the browser.
+	 */
+	public function requestPasswordReset(string $actorUid, string $targetUid): void {
+		if (!$this->access->canRead($actorUid)) {
+			throw new LogicException('Keine Leseberechtigung für die Mitgliederliste.');
+		}
+		$key = 'profile_fields:member_directory:reset:' . hash('sha256', $targetUid);
+		$this->locks->acquireLock($key, ILockingProvider::LOCK_EXCLUSIVE);
+		try {
+			$info = $this->accountDetails($actorUid, $targetUid);
+			if (!$info['can_reset_password']) {
+				throw new LogicException('Passwort-Zurücksetzung für dieses Konto nicht verfügbar.');
+			}
+			$user = $this->users->get($targetUid);
+			if ($user === null || $user->getUID() !== $targetUid) {
+				throw new LogicException('Passwort-Zurücksetzung nicht verfügbar.');
+			}
+			$lastKey = 'member_directory.password_reset_last.' . hash('sha256', $targetUid);
+			$last = (int)$this->systemConfig->getAppValue('profile_fields', $lastKey, '0');
+			if (time() - $last < 1800) {
+				throw new LogicException('Für dieses Mitglied wurde kürzlich bereits eine Reset-Mail angefordert. Bitte später erneut versuchen.');
+			}
+			$email = $user->getEMailAddress();
+			if ($email === null || filter_var($email, FILTER_VALIDATE_EMAIL) === false) {
+				throw new LogicException('Keine gültige E-Mail-Adresse für dieses Mitglied hinterlegt.');
+			}
+
+			// Matches Nextcloud 35's core lost-password token semantics:
+			// subject=lostpassword, bound to the currently saved email.
+			$token = $this->verificationToken->create($user, 'lostpassword', $email);
+			try {
+				$link = $this->urlGenerator->linkToRouteAbsolute('core.lost.resetform',
+					['userId' => $user->getUID(), 'token' => $token]);
+				$template = $this->mailer->createEMailTemplate('profile_fields.MemberPasswordReset',
+					['link' => $link]);
+				$template->setSubject($this->l10n->t('%s password reset', [$this->defaults->getName()]));
+				$template->addHeader();
+				$template->addHeading($this->l10n->t('Password reset'));
+				$template->addBodyText(
+					'Für dein Vereins-Nextcloud-Konto wurde eine Passwortzurücksetzung angefordert. Falls du das nicht möchtest, ignoriere diese E-Mail.',
+					'Für dein Vereins-Nextcloud-Konto wurde eine Passwortzurücksetzung angefordert. Falls du das nicht möchtest, ignoriere diese E-Mail.'
+				);
+				$template->addBodyButton('Passwort selbst zurücksetzen', $link, false);
+				$template->addFooter();
+				$message = $this->mailer->createMessage();
+				$message->setTo([$email => $user->getDisplayName()]);
+				$message->useTemplate($template);
+				$this->mailer->send($message);
+				$this->systemConfig->setAppValue('profile_fields', $lastKey, (string)time());
+				$this->logger->info('Member password reset mail requested', [
+					'actor_uid' => $actorUid, 'target_uid' => $targetUid,
+				]);
+			} catch (Throwable $error) {
+				$this->verificationToken->delete($token, $user, 'lostpassword');
+				throw $error;
+			}
+		} finally {
+			$this->locks->releaseLock($key, ILockingProvider::LOCK_EXCLUSIVE);
+		}
 	}
 
 	/** Only administrators may change an account recovery address. */
