@@ -103,13 +103,14 @@ class MemberDirectoryApiController extends OCSController {
 		string $email,
 		string $department,
 		array $fields = [],
+		string $birthdate = '',
 	): DataResponse {
 		if ($this->userId === null || !$this->access->canCreate($this->userId)) {
 			return new DataResponse(['message' => 'Keine Berechtigung, neue Mitglieder anzulegen.'], 403);
 		}
 		try {
 			return new DataResponse($this->creator->create(
-				$this->userId, $userUid, $firstName, $lastName, $displayName, $email, $department, $fields,
+				$this->userId, $userUid, $firstName, $lastName, $displayName, $email, $department, $fields, $birthdate,
 			), 201);
 		} catch (MemberDirectoryConflictException $exception) {
 			return new DataResponse(['message' => $exception->getMessage()], 409);
