@@ -21,6 +21,7 @@ use OCP\Lock\ILockingProvider;
  */
 class MemberDirectoryService {
 	private const MAX_PAGE_SIZE = 100;
+	private const MAX_ALL_MEMBERS = 5000;
 
 	public function __construct(
 		private MemberDirectoryConfig $config,
@@ -41,9 +42,16 @@ class MemberDirectoryService {
 		int $limit = 50,
 		int $offset = 0,
 		?string $actorUid = null,
+		string $sortBy = 'display_name',
+		string $sortDirection = 'asc',
 	): array {
-		if ($limit < 1 || $limit > self::MAX_PAGE_SIZE || $offset < 0) {
+		// limit=0 explicitly requests all matching members. Refuse unlimited
+		// result sets beyond a generous club-sized safety cap.
+		if ($limit < 0 || $limit > self::MAX_PAGE_SIZE || $offset < 0 || ($limit === 0 && $offset !== 0)) {
 			throw new InvalidArgumentException('Invalid pagination parameters.');
+		}
+		if (!in_array($sortDirection, ['asc', 'desc'], true)) {
+			throw new InvalidArgumentException('Invalid sorting direction.');
 		}
 		$search = trim($search);
 		if (mb_strlen($search) > 200) {
@@ -60,6 +68,13 @@ class MemberDirectoryService {
 		}
 
 		$definitions = $this->allowedDefinitions($actorUid);
+		// Only sort on fields the requesting user is already allowed to read.
+		// Reject unknown or private field keys instead of revealing values
+		// through the ordering of otherwise visible members.
+		$allowedSortKeys = array_map(static fn (FieldDefinition $definition): string => $definition->getFieldKey(), $definitions);
+		if (!in_array($sortBy, ['display_name', 'department'], true) && !in_array($sortBy, $allowedSortKeys, true)) {
+			throw new InvalidArgumentException('Invalid or unauthorized sorting field.');
+		}
 		$items = [];
 		$normalizedSearch = mb_strtolower($search);
 		foreach ($group->getUsers() as $user) {
@@ -87,13 +102,26 @@ class MemberDirectoryService {
 			];
 		}
 
-		usort($items, static fn (array $a, array $b): int => [
-			mb_strtolower($a['display_name']),
-			$a['user_uid'],
-		] <=> [
-			mb_strtolower($b['display_name']),
-			$b['user_uid'],
-		]);
+		if ($limit === 0 && count($items) > self::MAX_ALL_MEMBERS) {
+			throw new InvalidArgumentException('Too many matching members for an all-at-once response. Please select 50 or 100 per page.');
+		}
+
+		usort($items, static function (array $a, array $b) use ($sortBy, $sortDirection): int {
+			$aValue = self::sortingValue($a, $sortBy);
+			$bValue = self::sortingValue($b, $sortBy);
+			// Keep missing values last, including in descending mode.
+			if ($aValue === '' || $bValue === '') {
+				$comparison = ($aValue === '' ? 1 : 0) <=> ($bValue === '' ? 1 : 0);
+				if ($comparison !== 0) {
+					return $comparison;
+				}
+			}
+			$comparison = strnatcasecmp($aValue, $bValue);
+			if ($comparison !== 0) {
+				return $sortDirection === 'desc' ? -$comparison : $comparison;
+			}
+			return strnatcasecmp($a['user_uid'], $b['user_uid']);
+		});
 
 		return [
 			'fields' => array_values(array_map(fn (FieldDefinition $definition): array => [
@@ -105,9 +133,32 @@ class MemberDirectoryService {
 				'can_write' => $this->access->canWriteField($actorUid, $definition),
 			], $definitions)),
 			'departments' => $this->config->departments(),
-			'items' => array_slice($items, $offset, $limit),
+			'items' => $limit === 0 ? $items : array_slice($items, $offset, $limit),
 			'pagination' => ['total' => count($items), 'limit' => $limit, 'offset' => $offset],
 		];
+	}
+
+	/**
+	 * @param array<string, mixed> $member
+	 */
+	private static function sortingValue(array $member, string $key): string {
+		if ($key === 'display_name') {
+			return trim((string)$member['display_name']);
+		}
+		if ($key === 'department') {
+			return implode(', ', $member['departments']);
+		}
+		$value = $member['fields'][$key]['value'] ?? null;
+		if ($value === null) {
+			return '';
+		}
+		if (is_array($value)) {
+			return implode(', ', array_map(static fn (mixed $part): string => (string)$part, $value));
+		}
+		if (is_bool($value)) {
+			return $value ? 'Ja' : 'Nein';
+		}
+		return trim((string)$value);
 	}
 
 	/**
