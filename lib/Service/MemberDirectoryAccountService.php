@@ -11,8 +11,10 @@ namespace OCA\ProfileFields\Service;
 
 use InvalidArgumentException;
 use LogicException;
+use OCP\Accounts\IAccountManager;
 use OCP\Group\ISubAdmin;
 use OCP\IGroup;
+use OCP\IConfig;
 use OCP\IGroupManager;
 use OCP\IUser;
 use OCP\IUserManager;
@@ -31,7 +33,110 @@ class MemberDirectoryAccountService {
 		private IUserManager $users,
 		private ILockingProvider $locks,
 		private LoggerInterface $logger,
+		private IAccountManager $accountManager,
+		private IConfig $systemConfig,
 	) {
+	}
+
+	/**
+	 * Native Nextcloud account data, not duplicated profile_fields entries.
+	 * Birth dates are deliberately withheld from directory-only readers.
+	 *
+	 * @return array{email: string, birthdate: string, can_edit_email: bool, can_edit_birthdate: bool, can_reset_password: bool}
+	 */
+	public function accountDetails(?string $actorUid, string $targetUid): array {
+		$empty = ['email' => '', 'birthdate' => '', 'can_edit_email' => false,
+			'can_edit_birthdate' => false, 'can_reset_password' => false];
+		if (!$this->access->canRead($actorUid) || !$this->access->isMember($targetUid)) {
+			return $empty;
+		}
+		$user = $this->users->get($targetUid);
+		if ($user === null || $user->getUID() !== $targetUid) {
+			return $empty;
+		}
+		$email = (string)($user->getEMailAddress() ?? '');
+		$canManage = $actorUid !== null && $this->canEditAccount($actorUid, $targetUid);
+		$canEditEmail = $canManage && $actorUid !== null
+			&& $this->groups->isAdmin($actorUid)
+			&& $user->canChangeEmail()
+			&& $user->getPrimaryEMailAddress() === null;
+		$canEditBirthdate = $canManage && $user->canEditProperty(IAccountManager::PROPERTY_BIRTHDATE);
+		$birthdate = '';
+		if ($canManage) {
+			$account = $this->accountManager->getAccount($user);
+			$birthdate = self::dateValue($account->getProperty(IAccountManager::PROPERTY_BIRTHDATE)->getValue());
+		}
+		// Requesting a reset always uses Nextcloud's existing lost-password flow.
+		// Never allow a directory reader to change a user's email or password.
+		$canReset = $actorUid !== null && $email !== '' && $user->isEnabled()
+			&& $user->canChangePassword()
+			&& !$this->groups->isAdmin($targetUid)
+			&& !$this->groups->isDelegatedAdmin($targetUid)
+			&& $this->systemConfig->getSystemValue('lost_password_link', '') === '';
+
+		return [
+			'email' => $email,
+			'birthdate' => $birthdate,
+			'can_edit_email' => $canEditEmail,
+			'can_edit_birthdate' => $canEditBirthdate,
+			'can_reset_password' => $canReset,
+		];
+	}
+
+	/** Only administrators may change an account recovery address. */
+	public function updateEmail(string $actorUid, string $uid, string $email, string $expectedEmail): void {
+		$this->withMemberLock($actorUid, $uid, function (IUser $user) use ($actorUid, $uid, $email, $expectedEmail): void {
+			if (!$this->accountDetails($actorUid, $uid)['can_edit_email']) {
+				throw new LogicException('Nur berechtigte Administratoren dürfen die Konto-E-Mail-Adresse ändern.');
+			}
+			$email = mb_strtolower(trim($email));
+			if ($email === '' || strlen($email) > 254 || filter_var($email, FILTER_VALIDATE_EMAIL) === false) {
+				throw new InvalidArgumentException('Bitte eine gültige E-Mail-Adresse angeben.');
+			}
+			if (($user->getEMailAddress() ?? '') !== $expectedEmail) {
+				throw new MemberDirectoryConflictException('Die E-Mail-Adresse wurde inzwischen geändert. Bitte aktualisieren.');
+			}
+			if ($email !== $expectedEmail) {
+				$user->setSystemEMailAddress($email);
+			}
+		});
+	}
+
+	/**
+	 * Native birthdate property. Only directory writers with permission to
+	 * manage this member may change it; readonly directory members never see it.
+	 */
+	public function updateBirthdate(string $actorUid, string $uid, string $birthdate, string $expectedBirthdate): void {
+		$this->withMemberLock($actorUid, $uid, function (IUser $user) use ($actorUid, $uid, $birthdate, $expectedBirthdate): void {
+			if (!$this->accountDetails($actorUid, $uid)['can_edit_birthdate']) {
+				throw new LogicException('Keine Berechtigung zum Bearbeiten des Geburtsdatums.');
+			}
+			$birthdate = self::validateBirthdate($birthdate);
+			$account = $this->accountManager->getAccount($user);
+			$property = $account->getProperty(IAccountManager::PROPERTY_BIRTHDATE);
+			if (self::dateValue($property->getValue()) !== $expectedBirthdate) {
+				throw new MemberDirectoryConflictException('Das Geburtsdatum wurde inzwischen geändert. Bitte aktualisieren.');
+			}
+			$property->setValue($birthdate === '' ? '' : $birthdate . 'T00:00:00.000Z');
+			$this->accountManager->updateAccount($account);
+		});
+	}
+
+	public static function validateBirthdate(string $value): string {
+		$value = trim($value);
+		if ($value === '') {
+			return '';
+		}
+		if (!preg_match('/^(\d{4})-(\d{2})-(\d{2})$/D', $value, $matches)
+			|| !checkdate((int)$matches[2], (int)$matches[3], (int)$matches[1])
+			|| $value > gmdate('Y-m-d')) {
+			throw new InvalidArgumentException('Bitte ein gültiges Geburtsdatum bis heute angeben.');
+		}
+		return $value;
+	}
+
+	private static function dateValue(string $value): string {
+		return preg_match('/^\d{4}-\d{2}-\d{2}/', $value) === 1 ? substr($value, 0, 10) : '';
 	}
 
 	/** @return list<string> */
