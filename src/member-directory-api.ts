@@ -74,7 +74,7 @@ export const createMember = async(payload: NewMemberPayload): Promise<NewMemberR
 	return response.data.ocs.data
 }
 
-export const fetchMembers = async(params: { department: string, search: string, limit: number, offset: number }): Promise<MemberPage> => {
+export const fetchMembers = async(params: { department: string, search: string, limit: number, offset: number, sortBy: string, sortDirection: 'asc' | 'desc' }): Promise<MemberPage> => {
 	const response = await axios.get<{ ocs: { data: MemberPage } }>(apiUrl('/members'), { headers, params })
 	return response.data.ocs.data
 }
