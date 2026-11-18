@@ -33,6 +33,22 @@ class MemberDirectoryApiControllerTest extends TestCase {
 		$this->assertSame(403, $controller->index()->getStatus());
 	}
 
+	public function testForwardsSortingAndAllMembersLimit(): void {
+		$access = $this->createMock(MemberDirectoryAccessService::class);
+		$access->method('canRead')->willReturn(true);
+		$directory = $this->createMock(MemberDirectoryService::class);
+		$directory->expects(self::once())->method('listMembers')->with(
+			'', '', 0, 0, 'admin', 'mitgliedsnummer', 'desc',
+		)->willReturn([
+			'items' => [],
+			'fields' => [],
+			'departments' => [],
+			'pagination' => ['total' => 0, 'limit' => 0, 'offset' => 0],
+		]);
+		$controller = $this->controller($directory, $access);
+		self::assertSame(200, $controller->index('', '', 0, 0, 'mitgliedsnummer', 'desc')->getStatus());
+	}
+
 	public function testCannotChangeNonMember(): void {
 		$access = $this->createMock(MemberDirectoryAccessService::class);
 		$access->method('canWrite')->willReturn(true);
