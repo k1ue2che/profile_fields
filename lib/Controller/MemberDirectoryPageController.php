@@ -46,7 +46,7 @@ class MemberDirectoryPageController extends Controller {
 		}
 		// Register assets before layout rendering, not from the inner template.
 		// Otherwise Nextcloud may miss the styles on this frontend page.
-		Util::addStyle(Application::APP_ID, 'member-directory-table-v4');
+		Util::addStyle(Application::APP_ID, 'member-directory-table-v5');
 		Util::addScript(Application::APP_ID, 'profile_fields-member-directory');
 		return new TemplateResponse(Application::APP_ID, 'member-directory');
 	}
