@@ -28,17 +28,17 @@ class MemberDirectorySetupServiceTest extends TestCase {
 		return $field;
 	}
 
-	public function testFreshInstallationSuggestsFifteenMissingFields(): void {
+	public function testFreshInstallationSuggestsSixteenMissingFields(): void {
 		$definitions = $this->createMock(FieldDefinitionService::class);
 		$definitions->method('findAllOrdered')->willReturn([]);
 		$setup = new MemberDirectorySetupService($definitions, $this->createMock(ILockingProvider::class));
 
 		$preview = $setup->preview();
-		self::assertSame(15, $preview['missing_count']);
+		self::assertSame(16, $preview['missing_count']);
 		self::assertSame(0, $preview['conflicts']);
 		self::assertTrue($preview['can_apply']);
 		self::assertFalse($preview['ready']);
-		self::assertCount(15, MemberDirectorySetupService::requiredKeys());
+		self::assertCount(16, MemberDirectorySetupService::requiredKeys());
 	}
 
 	public function testMatchingExistingDefinitionsAreNeverModified(): void {
@@ -96,7 +96,7 @@ class MemberDirectorySetupServiceTest extends TestCase {
 		$definitions->method('findByFieldKey')->willReturnCallback(
 			static function (string $key) use (&$stored): ?FieldDefinition { return $stored[$key] ?? null; },
 		);
-		$definitions->expects(self::exactly(15))->method('create')->willReturnCallback(
+		$definitions->expects(self::exactly(16))->method('create')->willReturnCallback(
 			function (array $spec) use (&$stored): FieldDefinition {
 				$field = $this->field($spec);
 				$stored[$spec['field_key']] = $field;
@@ -106,6 +106,6 @@ class MemberDirectorySetupServiceTest extends TestCase {
 		$setup = new MemberDirectorySetupService($definitions, $this->createMock(ILockingProvider::class));
 		self::assertTrue($setup->apply()['ready']);
 		self::assertTrue($setup->apply()['ready']);
-		self::assertCount(15, $stored);
+		self::assertCount(16, $stored);
 	}
 }
