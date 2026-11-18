@@ -66,6 +66,7 @@ export type NewMemberPayload = {
 	lastName: string
 	displayName: string
 	email: string
+	birthdate: string
 	department: string
 	fields: Record<string, unknown>
 }
