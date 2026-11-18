@@ -27,7 +27,8 @@ SPDX-License-Identifier: AGPL-3.0-or-later -->
 						</label>
 						<label>Anzeigename *<input v-model.trim="createDraft.displayName" required maxlength="255" autocomplete="off"></label>
 						<label class="span-full">E-Mail-Adresse für Einladung *<input v-model.trim="createDraft.email" type="email" required maxlength="254" autocomplete="off"></label>
-						<label v-if="createField('vereins_telefon')" class="span-full">Telefonnummer (optional)<input v-model.trim="createDraft.fields.vereins_telefon" type="tel" maxlength="64" autocomplete="tel"></label>
+						<label v-if="createField('vereins_mobiltelefon')">Mobiltelefon (optional)<input v-model.trim="createDraft.fields.vereins_mobiltelefon" type="tel" maxlength="64" autocomplete="tel"></label>
+						<label v-if="createField('vereins_telefon')">Weitere Telefonnummer (optional)<input v-model.trim="createDraft.fields.vereins_telefon" type="tel" maxlength="64" autocomplete="tel-national"></label>
 					</div>
 				</fieldset>
 				<fieldset>
@@ -68,22 +69,26 @@ SPDX-License-Identifier: AGPL-3.0-or-later -->
 						</label>
 					</div>
 				</fieldset>
-				<fieldset v-if="createField('datenschutz_hinweise_erhalten') || createField('social_media_kontakt_erlaubt')">
-					<legend>Datenschutz und Kontakt</legend>
+				<fieldset v-if="createField('datenschutz_hinweise_erhalten') || createField('einwilligung_web') || createField('einwilligung_social')">
+					<legend>Erklärungen aus dem Aufnahmeantrag</legend>
+					<p>Hier nur die Angaben aus dem bereits unterschriebenen Aufnahmeantrag dokumentieren. Eine neue Einwilligung wird hier nicht eingeholt.</p>
 					<div class="create-grid">
-						<label v-if="createField('datenschutz_hinweise_erhalten')">Datenschutzhinweise erhalten
-							<small>Dokumentiert die Übergabe der Informationen, keine pauschale Einwilligung.</small>
+						<label v-if="createField('datenschutz_hinweise_erhalten')">Datenschutzhinweise erhalten und gelesen
+							<small>Kenntnisnahme laut Antrag, keine pauschale Datenschutz-Einwilligung.</small>
 							<select v-model="createDraft.fields.datenschutz_hinweise_erhalten">
 								<option value="">Nicht dokumentiert</option><option value="Ja">Ja</option><option value="Nein">Nein</option>
 							</select>
 						</label>
-						<label v-if="createField('social_media_profil')" class="span-full">Social-Media-Profil / Kontakt (optional)
-							<input v-model.trim="createDraft.fields.social_media_profil" type="text" maxlength="255" placeholder="z. B. Plattform und Benutzername" autocomplete="off">
+						<label v-if="createField('einwilligung_web')">Foto-/Videoveröffentlichung auf Vereinswebsite
+							<small>Nur die freiwillige Auswahl aus dem unterschriebenen Antrag übernehmen.</small>
+							<select v-model="createDraft.fields.einwilligung_web">
+								<option value="">Keine Angabe</option><option value="Ja">Ja</option><option value="Nein">Nein</option>
+							</select>
 						</label>
-						<label v-if="createField('social_media_kontakt_erlaubt')">Kontakt über Social Media gewünscht
-							<small>Nur „Ja“ wählen, wenn der konkrete Kontaktweg mit dem Mitglied vereinbart ist.</small>
-							<select v-model="createDraft.fields.social_media_kontakt_erlaubt">
-								<option value="">Nicht angegeben</option><option value="Ja">Ja</option><option value="Nein">Nein</option>
+						<label v-if="createField('einwilligung_social')">Foto-/Videoveröffentlichung auf Vereins-Social-Media
+							<small>Getrennte freiwillige Auswahl aus dem unterschriebenen Antrag; konkrete Plattformen beachten.</small>
+							<select v-model="createDraft.fields.einwilligung_social">
+								<option value="">Keine Angabe</option><option value="Ja">Ja</option><option value="Nein">Nein</option>
 							</select>
 						</label>
 					</div>
@@ -232,7 +237,7 @@ const countryNames: Record<string, string> = {
 	CZ: 'Tschechien', FR: 'Frankreich', ES: 'Spanien', IT: 'Italien', SI: 'Slowenien',
 }
 const countryLabel = (code: string): string => countryNames[code] ? `${countryNames[code]} (${code})` : code
-const otherCreateFields = computed(() => creatableFields.value.filter(f => !['mitgliedsnummer', 'eintrittsdatum', 'beitragsfrei', 'beitragsart', 'vereins_strasse', 'vereins_hausnummer', 'vereins_plz', 'vereins_ort', 'vereins_land', 'vereins_telefon', 'datenschutz_hinweise_erhalten', 'social_media_kontakt_erlaubt', 'social_media_profil'].includes(f.field_key)))
+const otherCreateFields = computed(() => creatableFields.value.filter(f => !['mitgliedsnummer', 'eintrittsdatum', 'beitragsfrei', 'beitragsart', 'vereins_strasse', 'vereins_hausnummer', 'vereins_plz', 'vereins_ort', 'vereins_land', 'vereins_mobiltelefon', 'vereins_telefon', 'datenschutz_hinweise_erhalten', 'einwilligung_web', 'einwilligung_social', 'social_media_profil'].includes(f.field_key)))
 const memberNumberManuallyEdited = ref(false)
 const suggestedUid = (first: string, last: string): string => {
 	const clean = (text: string) => text.trim().replace(/\s+/g, ' ')
