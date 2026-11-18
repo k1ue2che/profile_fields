@@ -1,0 +1,948 @@
+/*
+ * SPDX-FileCopyrightText: 2026 profile_fields contributors
+ * SPDX-License-Identifier: AGPL-3.0-or-later
+ *
+ * Nextcloud does not automatically load the CSS output of a second Vite entry.
+ * This stylesheet is registered by the member-directory PHP template.
+ */
+#profile-fields-member-directory {
+  display: block;
+  min-width: 0;
+  width: 100%;
+  color: var(--color-main-text);
+}
+
+#profile-fields-member-directory *,
+#profile-fields-member-directory *::before,
+#profile-fields-member-directory *::after { box-sizing: border-box; }
+
+#profile-fields-member-directory .member-directory {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  padding: 24px 28px 36px;
+}
+
+#profile-fields-member-directory .member-directory > header {
+  display: block;
+  margin: 0 0 22px;
+}
+
+#profile-fields-member-directory .member-directory > header h2 {
+  margin: 0 0 8px;
+  font-size: 25px;
+  line-height: 1.3;
+  font-weight: 700;
+}
+
+#profile-fields-member-directory .member-directory > header p {
+  margin: 0;
+  color: var(--color-text-maxcontrast);
+  line-height: 1.5;
+}
+
+#profile-fields-member-directory .toolbar {
+  display: flex;
+  align-items: end;
+  flex-wrap: wrap;
+  gap: 14px 18px;
+  margin: 20px 0 16px;
+}
+
+#profile-fields-member-directory .toolbar > label {
+  display: grid;
+  gap: 7px;
+  font-weight: 600;
+}
+
+#profile-fields-member-directory .toolbar input,
+#profile-fields-member-directory .toolbar select,
+#profile-fields-member-directory .member-directory td input,
+#profile-fields-member-directory .member-directory td select {
+  width: 100%;
+  min-width: 0;
+  max-width: 330px;
+  min-height: 38px;
+  padding: 7px 10px;
+  margin: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--border-radius, 6px);
+  color: var(--color-main-text);
+  background: var(--color-main-background);
+}
+
+#profile-fields-member-directory .toolbar > label:first-child input {
+  min-width: min(300px, 70vw);
+}
+
+#profile-fields-member-directory .toolbar button,
+#profile-fields-member-directory .member-directory .actions button,
+#profile-fields-member-directory .member-directory > footer button {
+  min-height: 38px;
+  padding: 8px 13px;
+  border-radius: var(--border-radius, 6px);
+}
+
+#profile-fields-member-directory button:disabled {
+  opacity: .55;
+  cursor: default;
+}
+
+#profile-fields-member-directory .columns {
+  position: relative;
+  width: 100%;
+  flex-basis: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--border-radius-large, 10px);
+}
+
+#profile-fields-member-directory .columns summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+#profile-fields-member-directory .columns[open] {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(175px, 1fr));
+  gap: 10px 16px;
+}
+
+#profile-fields-member-directory .columns[open] summary { grid-column: 1 / -1; }
+
+#profile-fields-member-directory .column-choice {
+  display: flex !important;
+  align-items: center;
+  gap: 8px;
+  line-height: 1.5;
+}
+
+#profile-fields-member-directory .column-choice input {
+  width: auto;
+  min-height: auto;
+  margin: 0;
+}
+
+#profile-fields-member-directory .table-scroll {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: visible;
+  border: 1px solid var(--color-border);
+  border-radius: var(--border-radius-large, 10px);
+  background: var(--color-main-background);
+}
+
+#profile-fields-member-directory .member-directory table {
+  border-collapse: separate;
+  border-spacing: 0;
+  width: max-content;
+  min-width: 100%;
+  table-layout: auto;
+}
+
+#profile-fields-member-directory .member-directory table thead th {
+  background: var(--color-background-dark);
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+#profile-fields-member-directory .member-directory table th,
+#profile-fields-member-directory .member-directory table td {
+  padding: 13px 15px;
+  border-bottom: 1px solid var(--color-border);
+  text-align: left;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+#profile-fields-member-directory .member-directory table tbody tr:last-child > th,
+#profile-fields-member-directory .member-directory table tbody tr:last-child > td {
+  border-bottom: 0;
+}
+
+#profile-fields-member-directory .member-directory table tbody tr:hover {
+  background: var(--color-background-hover);
+}
+
+#profile-fields-member-directory .member-directory table th:first-child {
+  min-width: 190px;
+  max-width: 260px;
+}
+
+#profile-fields-member-directory .member-directory table td:nth-child(2) {
+  min-width: 112px;
+}
+
+#profile-fields-member-directory .member-directory table tbody th {
+  font-weight: 650;
+}
+
+#profile-fields-member-directory .member-directory table tbody th small {
+  display: block;
+  margin-top: 4px;
+  color: var(--color-text-maxcontrast);
+  font-size: 12px;
+  font-weight: 400;
+}
+
+#profile-fields-member-directory .cell-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 320px;
+  padding: 7px 10px;
+  border: 1px solid transparent;
+  border-radius: var(--border-radius, 6px);
+  background: var(--color-background-dark);
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+#profile-fields-member-directory .cell-button:hover,
+#profile-fields-member-directory .cell-button:focus-visible {
+  background: var(--color-background-hover);
+  border-color: var(--color-border);
+  text-decoration: underline;
+}
+
+#profile-fields-member-directory .member-directory td .actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+#profile-fields-member-directory .member-directory td select,
+#profile-fields-member-directory .member-directory td input {
+  min-width: 115px;
+}
+
+#profile-fields-member-directory .member-directory > footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  margin: 20px 0 0;
+}
+
+#profile-fields-member-directory .member-directory .error {
+  color: var(--color-error-text);
+  margin: 12px 0;
+}
+
+#profile-fields-member-directory .member-directory .notice {
+  color: var(--color-success-text);
+  margin: 12px 0;
+}
+
+@media (max-width: 700px) {
+  #profile-fields-member-directory .member-directory { padding: 16px 12px 28px; }
+  #profile-fields-member-directory .toolbar { gap: 10px; }
+  #profile-fields-member-directory .member-directory table th,
+  #profile-fields-member-directory .member-directory table td { padding: 10px 12px; }
+}
+
+
+/* Member creation form: Nextcloud loads this stylesheet through the PHP
+ * template; the Vue component's Vite CSS chunk is not loaded automatically. */
+#profile-fields-member-directory .member-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin: 4px 0 16px;
+}
+#profile-fields-member-directory .member-actions .create-button,
+#profile-fields-member-directory .member-create .create-submit button[type="submit"] {
+  min-height: 42px;
+  padding: 9px 16px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--color-primary-element);
+  color: var(--color-primary-element-text);
+  font-weight: 700;
+}
+#profile-fields-member-directory .member-create {
+  display: block;
+  box-sizing: border-box;
+  width: min(100%, 960px);
+  max-width: 960px;
+  margin: 14px auto 28px;
+  padding: clamp(18px, 3vw, 32px);
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  background: var(--color-main-background);
+  color: var(--color-main-text);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, .10);
+}
+#profile-fields-member-directory .member-create .create-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 18px;
+}
+#profile-fields-member-directory .member-create .create-heading h3 {
+  margin: 0 0 7px;
+  font-size: 22px;
+  line-height: 1.3;
+}
+#profile-fields-member-directory .member-create .create-heading p {
+  margin: 0;
+  line-height: 1.5;
+  color: var(--color-text-maxcontrast);
+}
+#profile-fields-member-directory .member-create .create-close {
+  flex: none;
+  min-height: 38px;
+  padding: 7px 13px;
+}
+#profile-fields-member-directory .member-create .create-form {
+  display: grid;
+  gap: 22px;
+  margin-top: 24px;
+}
+#profile-fields-member-directory .member-create fieldset {
+  display: block;
+  min-width: 0;
+  margin: 0;
+  padding: 16px 0 0;
+  border: 0;
+  border-top: 1px solid var(--color-border);
+}
+#profile-fields-member-directory .member-create legend {
+  padding: 0 16px 0 0;
+  font-size: 17px;
+  font-weight: 700;
+}
+#profile-fields-member-directory .member-create .create-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px 20px;
+  width: 100%;
+}
+#profile-fields-member-directory .member-create .create-grid > label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+#profile-fields-member-directory .member-create .create-grid > label.span-full {
+  grid-column: 1 / -1;
+}
+#profile-fields-member-directory .member-create .create-grid label small {
+  display: block;
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.4;
+  font-weight: 400;
+  color: var(--color-text-maxcontrast);
+  white-space: normal;
+}
+#profile-fields-member-directory .member-create .create-grid input,
+#profile-fields-member-directory .member-create .create-grid select {
+  box-sizing: border-box;
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  min-height: 42px;
+  margin: 0;
+  padding: 9px 11px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-main-background);
+  color: var(--color-main-text);
+}
+#profile-fields-member-directory .member-create .create-submit {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 2px;
+}
+#profile-fields-member-directory .member-create .create-submit button {
+  min-height: 42px;
+  padding: 9px 16px;
+  border-radius: 8px;
+}
+@media (max-width: 620px) {
+  #profile-fields-member-directory .member-create { padding: 16px; }
+  #profile-fields-member-directory .member-create .create-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Keep the primary creation action next to the title, not at the far
+ * right edge of an ultrawide member table. */
+#profile-fields-member-directory .member-directory .member-heading {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  gap: 12px 18px;
+  margin-bottom: 8px;
+}
+#profile-fields-member-directory .member-directory .member-heading h2 {
+  margin: 0;
+}
+#profile-fields-member-directory .member-directory .member-heading .create-button {
+  min-height: 40px;
+  padding: 8px 15px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--color-primary-element);
+  color: var(--color-primary-element-text);
+  font-weight: 700;
+}
+
+/* At 100% zoom, Nextcloud may keep the app pane at viewport height instead
+ * of making the whole document scroll. Constrain the creation card and give
+ * its form its own vertical scrolling area, including keyboard scrolling. */
+#profile-fields-member-directory .member-create {
+  display: flex;
+  flex-direction: column;
+  max-height: min(80dvh, 900px);
+  overflow: hidden;
+}
+#profile-fields-member-directory .member-create .create-heading {
+  flex: 0 0 auto;
+}
+#profile-fields-member-directory .member-create .create-form {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  grid-auto-rows: max-content;
+  padding: 0 8px 6px 0;
+}
+#profile-fields-member-directory .member-create .create-submit {
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  padding: 13px 0 5px;
+  border-top: 1px solid var(--color-border);
+  background: var(--color-main-background);
+}
+@media (max-width: 620px) {
+  #profile-fields-member-directory .member-create {
+    max-height: 68dvh;
+  }
+}
+
+
+/* Mobile: use a true viewport-sized sheet rather than allowing the member
+ * table or Nextcloud app pane to clip the creation form. */
+@media (max-width: 760px) {
+  #profile-fields-member-directory .member-directory {
+    width: 100%;
+    min-width: 0;
+    padding: 12px 10px 30px;
+  }
+
+  #profile-fields-member-directory .member-directory > header h2 {
+    font-size: 21px;
+  }
+
+  #profile-fields-member-directory .member-directory .member-heading {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  #profile-fields-member-directory .member-create {
+    position: fixed;
+    z-index: 3000;
+    top: max(8px, env(safe-area-inset-top, 0px));
+    right: max(8px, env(safe-area-inset-right, 0px));
+    bottom: max(8px, env(safe-area-inset-bottom, 0px));
+    left: max(8px, env(safe-area-inset-left, 0px));
+    box-sizing: border-box;
+    width: auto;
+    min-width: 0;
+    max-width: none;
+    height: auto;
+    max-height: none;
+    margin: 0;
+    padding: 14px 12px 10px;
+    border-radius: 12px;
+    box-shadow: 0 0 0 200vmax rgba(0,0,0,.5);
+    overflow: hidden;
+  }
+
+  #profile-fields-member-directory .member-create .create-heading {
+    display: flex;
+    flex: 0 0 auto;
+    gap: 8px;
+    align-items: flex-start;
+  }
+
+  #profile-fields-member-directory .member-create .create-heading h3 {
+    font-size: 19px;
+    margin-bottom: 4px;
+  }
+
+  #profile-fields-member-directory .member-create .create-heading p {
+    font-size: 12px;
+    line-height: 1.35;
+  }
+
+  #profile-fields-member-directory .member-create .create-close {
+    min-width: 76px;
+    min-height: 40px;
+    padding: 7px;
+  }
+
+  #profile-fields-member-directory .member-create .create-form {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    min-height: 0;
+    height: auto;
+    max-height: none;
+    flex: 1 1 auto;
+    overflow-x: hidden;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    scrollbar-gutter: auto;
+    padding: 10px 4px 0 0;
+    margin-top: 10px;
+  }
+
+  #profile-fields-member-directory .member-create .create-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+  }
+
+  #profile-fields-member-directory .member-create .create-grid > label,
+  #profile-fields-member-directory .member-create .create-grid > label.span-full {
+    grid-column: 1 / -1;
+    min-width: 0;
+  }
+
+  #profile-fields-member-directory .member-create fieldset {
+    padding-top: 11px;
+    min-width: 0;
+  }
+
+  #profile-fields-member-directory .member-create legend {
+    font-size: 15px;
+  }
+
+  #profile-fields-member-directory .member-create .create-grid input,
+  #profile-fields-member-directory .member-create .create-grid select {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    min-height: 44px;
+    font-size: 16px; /* Prevent iOS auto zoom on focus */
+  }
+
+  #profile-fields-member-directory .member-create .create-submit {
+    display: grid;
+    position: sticky;
+    bottom: 0;
+    z-index: 2;
+    grid-template-columns: minmax(0,1fr) minmax(0,1.6fr);
+    gap: 8px;
+    width: 100%;
+    padding: 10px 0 max(5px, env(safe-area-inset-bottom, 0px));
+    margin: 0;
+    background: var(--color-main-background);
+  }
+
+  #profile-fields-member-directory .member-create .create-submit button {
+    white-space: normal;
+    min-width: 0;
+    min-height: 44px;
+    padding: 7px 8px;
+    font-size: 13px;
+  }
+
+  #profile-fields-member-directory .toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 9px;
+  }
+
+  #profile-fields-member-directory .toolbar > label {
+    min-width: min(100%, 160px);
+    flex: 1 1 160px;
+  }
+
+  #profile-fields-member-directory .toolbar input,
+  #profile-fields-member-directory .toolbar select {
+    max-width: 100%;
+    min-width: 0 !important;
+  }
+
+  #profile-fields-member-directory .table-scroll {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  #profile-fields-member-directory .member-directory table {
+    min-width: 780px;
+    width: max-content;
+  }
+
+  #profile-fields-member-directory .member-directory th,
+  #profile-fields-member-directory .member-directory td {
+    white-space: nowrap;
+  }
+}
+
+@media (max-width: 375px) {
+  #profile-fields-member-directory .member-create { padding: 10px 9px 8px; }
+  #profile-fields-member-directory .member-create .create-heading h3 { font-size: 17px; }
+  #profile-fields-member-directory .member-create .create-heading p { font-size: 11px; }
+}
+
+/* =========================================================
+   Member directory create dialog:
+   force light sheet even when Nextcloud uses dark theme
+   ========================================================= */
+
+#profile-fields-member-directory .create-button {
+  background: #0b6aa2 !important;
+  color: #ffffff !important;
+  border: 1px solid #08527d !important;
+  box-shadow: 0 2px 10px rgba(11, 106, 162, 0.28);
+  opacity: 1 !important;
+}
+
+#profile-fields-member-directory .create-button:hover,
+#profile-fields-member-directory .create-button:focus {
+  background: #095985 !important;
+  color: #ffffff !important;
+  border-color: #07496b !important;
+}
+
+#profile-fields-member-directory .member-create {
+  color-scheme: light;
+  background: #ffffff !important;
+  color: #182230 !important;
+  border: 1px solid #d8e1ea;
+  box-shadow: 0 24px 64px rgba(15, 23, 42, 0.22);
+}
+
+#profile-fields-member-directory .member-create,
+#profile-fields-member-directory .member-create * {
+  color: #182230;
+}
+
+#profile-fields-member-directory .member-create h1,
+#profile-fields-member-directory .member-create h2,
+#profile-fields-member-directory .member-create h3,
+#profile-fields-member-directory .member-create h4,
+#profile-fields-member-directory .member-create legend,
+#profile-fields-member-directory .member-create label {
+  color: #102a43 !important;
+}
+
+#profile-fields-member-directory .member-create p,
+#profile-fields-member-directory .member-create small,
+#profile-fields-member-directory .member-create .hint,
+#profile-fields-member-directory .member-create .field-hint {
+  color: #52606d !important;
+}
+
+#profile-fields-member-directory .member-create hr,
+#profile-fields-member-directory .member-create .section-divider,
+#profile-fields-member-directory .member-create .create-section {
+  border-color: #e5e7eb !important;
+}
+
+#profile-fields-member-directory .member-create input,
+#profile-fields-member-directory .member-create select,
+#profile-fields-member-directory .member-create textarea {
+  background: #ffffff !important;
+  color: #111827 !important;
+  border: 1px solid #cbd5e1 !important;
+  box-shadow: none !important;
+}
+
+#profile-fields-member-directory .member-create input::placeholder,
+#profile-fields-member-directory .member-create textarea::placeholder {
+  color: #94a3b8 !important;
+}
+
+#profile-fields-member-directory .member-create input:focus,
+#profile-fields-member-directory .member-create select:focus,
+#profile-fields-member-directory .member-create textarea:focus {
+  border-color: #0b6aa2 !important;
+  box-shadow: 0 0 0 2px rgba(11, 106, 162, 0.16) !important;
+}
+
+#profile-fields-member-directory .member-create .create-heading button {
+  background: #eaf2f8 !important;
+  color: #12344d !important;
+  border: 1px solid #cbd5e1 !important;
+}
+
+#profile-fields-member-directory .member-create .create-heading button:hover,
+#profile-fields-member-directory .member-create .create-heading button:focus {
+  background: #dceaf5 !important;
+}
+
+#profile-fields-member-directory .member-create .create-submit button:first-child {
+  background: #edf2f7 !important;
+  color: #12344d !important;
+  border: 1px solid #cbd5e1 !important;
+}
+
+#profile-fields-member-directory .member-create .create-submit button:last-child {
+  background: #0b6aa2 !important;
+  color: #ffffff !important;
+  border: 1px solid #08527d !important;
+}
+
+#profile-fields-member-directory .member-create .create-submit button:last-child:hover,
+#profile-fields-member-directory .member-create .create-submit button:last-child:focus {
+  background: #095985 !important;
+  border-color: #07496b !important;
+}
+
+/* optional: scrollbar in the white sheet a bit more visible */
+#profile-fields-member-directory .member-create .create-form {
+  scrollbar-color: #94a3b8 #f8fafc;
+}
+
+/* mobile fine tuning */
+@media (max-width: 768px) {
+  #profile-fields-member-directory .create-button {
+    background: #0b6aa2 !important;
+    color: #ffffff !important;
+  }
+
+  #profile-fields-member-directory .member-create {
+    background: #ffffff !important;
+    color: #182230 !important;
+  }
+}
+
+
+/* Member overview: five readable address columns, no inline editors. */
+#profile-fields-member-directory .member-summary-table {
+  width: 100%;
+  min-width: 740px;
+}
+#profile-fields-member-directory .member-summary-table th:first-child {
+  min-width: 135px;
+  max-width: none;
+}
+#profile-fields-member-directory .member-summary-table td:nth-child(2) {
+  min-width: 115px;
+}
+#profile-fields-member-directory .member-summary-table td:nth-child(3) {
+  min-width: 180px;
+}
+#profile-fields-member-directory .member-summary-table th,
+#profile-fields-member-directory .member-summary-table td {
+  white-space: nowrap;
+}
+#profile-fields-member-directory .member-edit-button {
+  min-height: 36px;
+  padding: 7px 13px;
+  border: 1px solid #a6c9df;
+  border-radius: 8px;
+  background: #eaf3f9;
+  color: #154b6b;
+  font-weight: 700;
+  cursor: pointer;
+}
+#profile-fields-member-directory .member-edit-button:hover,
+#profile-fields-member-directory .member-edit-button:focus-visible {
+  border-color: #0b6aa2;
+  background: #d4e9f7;
+  color: #103b56;
+}
+
+/* The edit sheet is modal on desktop AND mobile, independent of the
+   underlying Nextcloud theme and the existing new-member form. */
+#profile-fields-member-directory .member-edit-layer {
+  position: fixed;
+  z-index: 4000;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  padding: max(12px, env(safe-area-inset-top, 0px))
+    max(12px, env(safe-area-inset-right, 0px))
+    max(12px, env(safe-area-inset-bottom, 0px))
+    max(12px, env(safe-area-inset-left, 0px));
+  background: rgba(10, 22, 36, .7);
+}
+#profile-fields-member-directory .member-edit-layer .member-edit-dialog {
+  position: relative !important;
+  inset: auto !important;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  width: min(100%, 960px);
+  max-width: 960px;
+  min-width: 0;
+  height: min(92dvh, 900px);
+  max-height: min(92dvh, 900px);
+  margin: 0;
+  padding: clamp(14px, 2.5vw, 28px);
+  overflow: hidden;
+  background: #ffffff !important;
+  color: #182230 !important;
+  color-scheme: light;
+  border: 1px solid #d8e1ea;
+  border-radius: 16px;
+  box-shadow: 0 24px 68px rgba(0, 0, 0, .35);
+}
+#profile-fields-member-directory .member-edit-dialog .create-heading {
+  flex: 0 0 auto;
+}
+#profile-fields-member-directory .member-edit-dialog .create-form {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 18px;
+  min-height: 0;
+  margin-top: 18px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  padding: 0 4px 4px 0;
+}
+#profile-fields-member-directory .member-edit-dialog .create-submit {
+  flex: 0 0 auto;
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  margin-top: auto;
+  padding: 12px 0 0;
+  border-top: 1px solid #d8e1ea;
+  background: #fff !important;
+}
+#profile-fields-member-directory .member-edit-dialog .create-submit button[type="button"] {
+  border: 1px solid #cbd5e1 !important;
+  background: #edf2f7 !important;
+  color: #12344d !important;
+}
+#profile-fields-member-directory .member-edit-dialog .create-submit button[type="submit"] {
+  border: 1px solid #08527d !important;
+  background: #0b6aa2 !important;
+  color: #ffffff !important;
+}
+#profile-fields-member-directory .member-edit-dialog .edit-hint {
+  color: #52606d !important;
+  font-size: 13px;
+  margin: 0 0 12px;
+}
+#profile-fields-member-directory .member-edit-dialog .edit-error {
+  color: #a52722 !important;
+  font-weight: 600;
+}
+#profile-fields-member-directory .member-edit-dialog .edit-notice {
+  color: #146b3a !important;
+  font-weight: 600;
+}
+#profile-fields-member-directory .member-edit-dialog :disabled {
+  cursor: not-allowed;
+}
+#profile-fields-member-directory .member-edit-dialog input:disabled,
+#profile-fields-member-directory .member-edit-dialog select:disabled {
+  background: #f2f4f7 !important;
+  color: #39475b !important;
+  opacity: 1;
+}
+@media (max-width: 760px) {
+  #profile-fields-member-directory .member-edit-layer {
+    padding: max(8px, env(safe-area-inset-top, 0px))
+      max(8px, env(safe-area-inset-right, 0px))
+      max(8px, env(safe-area-inset-bottom, 0px))
+      max(8px, env(safe-area-inset-left, 0px));
+  }
+  #profile-fields-member-directory .member-edit-layer .member-edit-dialog {
+    width: 100%;
+    max-width: none;
+    height: 100%;
+    max-height: none;
+    border-radius: 12px;
+    padding: 14px 12px 10px;
+  }
+  #profile-fields-member-directory .member-edit-dialog .create-form {
+    margin-top: 12px;
+    gap: 15px;
+  }
+  #profile-fields-member-directory .member-edit-dialog .create-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+
+/* Compact member number, visible by default only when the API grants
+   access to the field. Keep the first column readable without adding
+   unnecessary width to the overview. */
+#profile-fields-member-directory .member-summary-table thead th.member-number-column,
+#profile-fields-member-directory .member-summary-table tbody td.member-number-column {
+  min-width: 68px;
+  max-width: 92px;
+  width: 76px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+#profile-fields-member-directory .member-summary-table .member-number-value {
+  display: inline-block;
+  min-width: 28px;
+  padding: 4px 8px;
+  border-radius: 7px;
+  background: var(--color-background-dark);
+  color: var(--color-main-text);
+  font-weight: 700;
+}
+#profile-fields-member-directory .member-summary-table th[scope="row"] {
+  min-width: 135px;
+  max-width: none;
+}
+
+
+/* Member table sorting and page-size selector */
+#profile-fields-member-directory .member-summary-table .member-sort {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  max-width: 100%;
+  min-height: 30px;
+  padding: 3px 5px;
+  margin: -3px -5px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  color: inherit;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+#profile-fields-member-directory .member-summary-table .member-sort:not(:disabled):hover,
+#profile-fields-member-directory .member-summary-table .member-sort:not(:disabled):focus-visible {
+  color: var(--color-main-text);
+  border-color: var(--color-border);
+  background: var(--color-background-hover);
+  text-decoration: underline;
+}
+#profile-fields-member-directory .member-summary-table .member-sort:disabled {
+  opacity: .55;
+  cursor: wait;
+}
+#profile-fields-member-directory .toolbar > label:has(select) select {
+  min-width: 138px;
+}
