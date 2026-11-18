@@ -212,7 +212,8 @@ class MemberDirectoryAccountService {
 		return $value;
 	}
 
-	private static function dateValue(string $value): string {
+	private static function dateValue(?string $value): string {
+		$value ??= '';
 		return preg_match('/^\d{4}-\d{2}-\d{2}/', $value) === 1 ? substr($value, 0, 10) : '';
 	}
 
