@@ -13,6 +13,7 @@ use InvalidArgumentException;
 use LogicException;
 use OCA\ProfileFields\Db\FieldDefinition;
 use OCA\Settings\Mailer\NewUserMailHelper;
+use OCP\Accounts\IAccountManager;
 use OCP\AppFramework\Utility\ITimeFactory;
 use OCP\Defaults;
 use OCP\IConfig;
@@ -55,6 +56,7 @@ class MemberDirectoryCreationService {
 		private IConfig $nextcloudConfig,
 		private ICrypto $crypto,
 		private LoggerInterface $logger,
+		private IAccountManager $accountManager,
 	) {
 	}
 
@@ -91,6 +93,7 @@ class MemberDirectoryCreationService {
 		string $email,
 		string $department,
 		array $fields,
+		string $birthdate = '',
 	): array {
 		if (!$this->access->canCreate($actorUid)) {
 			throw new LogicException('Keine Berechtigung zum Anlegen neuer Mitglieder.');
@@ -99,6 +102,8 @@ class MemberDirectoryCreationService {
 		$firstName = $this->name($firstName, 'Vorname');
 		$lastName = $this->name($lastName, 'Nachname');
 		$displayName = $this->name($displayName, 'Anzeigename');
+		// A native Nextcloud account property, deliberately not duplicated as a profile field.
+		$birthdate = MemberDirectoryAccountService::validateBirthdate($birthdate);
 		$email = mb_strtolower(trim($email));
 		if ($email === '' || strlen($email) > 254 || filter_var($email, FILTER_VALIDATE_EMAIL) === false) {
 			throw new InvalidArgumentException('Bitte eine gültige E-Mail-Adresse für die Einladung angeben.');
@@ -194,6 +199,7 @@ class MemberDirectoryCreationService {
 				}
 				self::ensureInitialDisplayName($created, $displayName);
 				$created->setSystemEMailAddress($email);
+				self::setInitialBirthdate($this->accountManager, $created, $birthdate);
 				foreach ([$base, $destination] as $group) {
 					$group->addUser($created);
 					if (!$this->groups->isInGroup($userUid, $group->getGID())) {
@@ -241,6 +247,26 @@ class MemberDirectoryCreationService {
 		} finally {
 			$this->locks->releaseLock($lockKey, ILockingProvider::LOCK_EXCLUSIVE);
 		}
+	}
+
+	/**
+	 * Save the native Nextcloud birthdate during account creation.
+	 * Keep its visibility PRIVATE and fail account creation rather than
+	 * silently discarding a supplied value.
+	 */
+	public static function setInitialBirthdate(IAccountManager $accountManager, IUser $user, string $birthdate): void {
+		if ($birthdate === '') {
+			return;
+		}
+		$birthdate = MemberDirectoryAccountService::validateBirthdate($birthdate);
+		if (!$user->canEditProperty(IAccountManager::PROPERTY_BIRTHDATE)) {
+			throw new LogicException('Das Benutzerverzeichnis erlaubt keine Bearbeitung des Geburtsdatums.');
+		}
+		$account = $accountManager->getAccount($user);
+		$property = $account->getProperty(IAccountManager::PROPERTY_BIRTHDATE);
+		$property->setValue($birthdate . 'T00:00:00.000Z');
+		$property->setScope(IAccountManager::SCOPE_PRIVATE);
+		$accountManager->updateAccount($account);
 	}
 
 	/**
