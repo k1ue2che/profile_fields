@@ -27,6 +27,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later -->
 						</label>
 						<label>Anzeigename *<input v-model.trim="createDraft.displayName" required maxlength="255" autocomplete="off"></label>
 						<label class="span-full">E-Mail-Adresse für Einladung *<input v-model.trim="createDraft.email" type="email" required maxlength="254" autocomplete="off"></label>
+						<label>Geburtsdatum (optional)<input v-model="createDraft.birthdate" type="date" autocomplete="bday"><small>Wird im Nextcloud-Kontoprofil gespeichert (privat).</small></label>
 						<label v-if="createField('vereins_mobiltelefon')">Mobiltelefon (optional)<input v-model.trim="createDraft.fields.vereins_mobiltelefon" type="tel" maxlength="64" autocomplete="tel"></label>
 						<label v-if="createField('vereins_telefon')">Weitere Telefonnummer (optional)<input v-model.trim="createDraft.fields.vereins_telefon" type="tel" maxlength="64" autocomplete="tel-national"></label>
 					</div>
@@ -284,7 +285,7 @@ const sortDirection = ref<'asc' | 'desc'>('asc')
 const shownKeys = ref<string[]>([])
 const loading = ref(false)
 const createOpen = ref(false)
-const createDraft = ref<NewMemberPayload>({ userUid: '', firstName: '', lastName: '', displayName: '', email: '', department: '', fields: {} })
+const createDraft = ref<NewMemberPayload>({ userUid: '', firstName: '', lastName: '', displayName: '', email: '', birthdate: '', department: '', fields: {} })
 const createUidManuallyEdited = ref(false)
 const createDisplayNameManuallyEdited = ref(false)
 const creatableFields = computed(() => page.value?.fields.filter(f => f.can_write && !['vereins_vorname', 'vereins_nachname'].includes(f.field_key)) || [])
@@ -333,7 +334,7 @@ async function submitCreate() {
 		}
 		const result = await createMember(createDraft.value)
 		createOpen.value = false
-		createDraft.value = { userUid: '', firstName: '', lastName: '', displayName: '', email: '', department: '', fields: {} }
+		createDraft.value = { userUid: '', firstName: '', lastName: '', displayName: '', email: '', birthdate: '', department: '', fields: {} }
 		createUidManuallyEdited.value = false
 		createDisplayNameManuallyEdited.value = false
 		memberNumberManuallyEdited.value = false
